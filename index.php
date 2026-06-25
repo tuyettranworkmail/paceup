@@ -31,6 +31,7 @@ $router->add('/login', 'AuthController', 'login');
 $router->add('/register', 'AuthController', 'register');
 $router->add('/logout', 'AuthController', 'logout');
 $router->add('/admin', 'AdminController', 'index');
+$router->add('/apply-coupon', 'CheckoutController', 'applyCoupon');
 
 // Parse URL
 $url = $_SERVER['REQUEST_URI'];

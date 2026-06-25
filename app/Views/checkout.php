@@ -102,10 +102,28 @@
                 <!-- Items will be injected here -->
             </div>
             
+            <!-- Voucher Section -->
+            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #ddd;">
+                <label style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem; display: block;">Mã giảm giá</label>
+                <div style="display: flex; gap: 0.5rem;" id="couponInputWrap">
+                    <input type="text" id="couponCode" placeholder="Nhập mã voucher" style="flex:1; padding: 0.7rem 1rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.95rem; font-family: var(--font-body);">
+                    <button type="button" onclick="applyCoupon()" style="padding: 0.7rem 1.2rem; background: #111; color: #fff; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; white-space: nowrap;">Áp dụng</button>
+                </div>
+                <div id="couponMsg" style="margin-top: 0.5rem; font-size: 0.85rem;"></div>
+                <div id="couponApplied" style="display:none; margin-top: 0.5rem; background: #E8F5E9; color: #388E3C; padding: 0.6rem 1rem; border-radius: 4px; font-size: 0.9rem; display: none; justify-content: space-between; align-items: center;">
+                    <span id="couponAppliedText"></span>
+                    <button type="button" onclick="removeCoupon()" style="background: none; border: none; color: #D32F2F; font-weight: 700; cursor: pointer; font-size: 0.9rem;">✕ Hủy</button>
+                </div>
+            </div>
+
             <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #ddd;">
                 <div class="summary-row">
                     <span>Tạm tính</span>
                     <span id="checkoutSubtotal">0 ₫</span>
+                </div>
+                <div class="summary-row" id="discountRow" style="display: none; color: #388E3C;">
+                    <span>Giảm giá</span>
+                    <span id="discountAmount">-0 ₫</span>
                 </div>
                 <div class="summary-row">
                     <span>Phí vận chuyển</span>
@@ -164,6 +182,71 @@ function selectPayment(element) {
     document.querySelectorAll('.payment-method').forEach(el => el.classList.remove('active'));
     element.classList.add('active');
     element.querySelector('input').checked = true;
+}
+
+let appliedDiscount = 0;
+let appliedCouponId = null;
+
+function getSubtotal() {
+    return checkoutCart.reduce((sum, item) => sum + item.price * item.qty, 0);
+}
+
+function updateTotals() {
+    const subtotal = getSubtotal();
+    const total = subtotal - appliedDiscount;
+    document.getElementById('checkoutSubtotal').textContent = formatPrice(subtotal);
+    document.getElementById('checkoutTotal').textContent = formatPrice(total > 0 ? total : 0);
+
+    const discountRow = document.getElementById('discountRow');
+    if (appliedDiscount > 0) {
+        discountRow.style.display = 'flex';
+        document.getElementById('discountAmount').textContent = '-' + formatPrice(appliedDiscount);
+    } else {
+        discountRow.style.display = 'none';
+    }
+}
+
+function applyCoupon() {
+    const code = document.getElementById('couponCode').value.trim();
+    const msg = document.getElementById('couponMsg');
+    if (!code) { msg.innerHTML = '<span style="color:#D32F2F">Vui lòng nhập mã.</span>'; return; }
+
+    msg.innerHTML = '<span style="color:#888">Đang kiểm tra...</span>';
+
+    fetch(BASE_URL + 'apply-coupon', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ code: code, order_total: getSubtotal() })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            appliedDiscount = data.discount;
+            appliedCouponId = data.coupon_id;
+            msg.innerHTML = '';
+            document.getElementById('couponInputWrap').style.display = 'none';
+            const applied = document.getElementById('couponApplied');
+            applied.style.display = 'flex';
+            document.getElementById('couponAppliedText').textContent =
+                '🎉 ' + data.code + ' (-' + data.discount_percent + '%, tiết kiệm ' + formatPrice(data.discount) + ')';
+            updateTotals();
+        } else {
+            msg.innerHTML = '<span style="color:#D32F2F">' + data.message + '</span>';
+        }
+    })
+    .catch(() => {
+        msg.innerHTML = '<span style="color:#D32F2F">Lỗi kết nối. Thử lại sau.</span>';
+    });
+}
+
+function removeCoupon() {
+    appliedDiscount = 0;
+    appliedCouponId = null;
+    document.getElementById('couponApplied').style.display = 'none';
+    document.getElementById('couponInputWrap').style.display = 'flex';
+    document.getElementById('couponCode').value = '';
+    document.getElementById('couponMsg').innerHTML = '';
+    updateTotals();
 }
 
 function handleCheckout(e) {
