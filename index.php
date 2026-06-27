@@ -36,6 +36,12 @@ $router->add('/change-password', 'AuthController', 'changePassword');
 $router->add('/forgot-password', 'AuthController', 'forgotPassword');
 $router->add('/verify-otp', 'AuthController', 'verifyOtp');
 $router->add('/reset-password', 'AuthController', 'resetPassword');
+$router->add('/account', 'User/ProfileController', 'index');
+$router->add('/account/update', 'User/ProfileController', 'update');
+$router->add('/account/avatar', 'User/ProfileController', 'uploadAvatar');
+$router->add('/account/addresses/add', 'User/ProfileController', 'addAddress');
+$router->add('/account/addresses/default', 'User/ProfileController', 'setDefaultAddress');
+$router->add('/account/addresses/delete', 'User/ProfileController', 'deleteAddress');
 $router->add('/admin', 'AdminController', 'index');
 $router->add('/apply-coupon', 'CheckoutController', 'applyCoupon');
 
