@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // Define Base URL to handle subdirectories in XAMPP
 $baseDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
@@ -30,6 +32,7 @@ $router->add('/checkout-success', 'CheckoutController', 'success');
 $router->add('/login', 'AuthController', 'login');
 $router->add('/register', 'AuthController', 'register');
 $router->add('/logout', 'AuthController', 'logout');
+$router->add('/change-password', 'AuthController', 'changePassword');
 $router->add('/admin', 'AdminController', 'index');
 $router->add('/apply-coupon', 'CheckoutController', 'applyCoupon');
 
