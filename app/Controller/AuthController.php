@@ -155,4 +155,98 @@ class AuthController {
         SessionHelper::redirect('/account');
     }
 
+    public function forgotPassword() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $email = trim($_POST['email'] ?? '');
+
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                SessionHelper::setFlash('error', 'Email không hợp lệ');
+                SessionHelper::redirect('/forgot-password');
+            }
+
+            $userModel = new UserModel();
+            $user = $userModel->findByEmail($email);
+
+            if (!$user) {
+                SessionHelper::setFlash('error', 'Email không tồn tại');
+                SessionHelper::redirect('/forgot-password');
+            }
+
+            $otp = rand(100000, 999999);
+            $expiresAt = date('Y-m-d H:i:s', strtotime('+10 minutes'));
+            $userModel->createOtp($email, $otp, $expiresAt);
+
+            $_SESSION['dev_otp'] = $otp;
+            $_SESSION['otp_email'] = $email;
+            SessionHelper::setFlash('info', "OTP của bạn là: $otp (chỉ dùng khi dev)");
+            SessionHelper::redirect('/verify-otp');
+        }
+
+        require __DIR__ . '/../Views/forgot_password.php';
+    }
+
+    public function verifyOtp() {
+        if (empty($_SESSION['otp_email'])) {
+            SessionHelper::redirect('/forgot-password');
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $otp = trim($_POST['otp'] ?? '');
+            $userModel = new UserModel();
+            $result = $userModel->verifyOtp($_SESSION['otp_email'], $otp);
+
+            if (!$result) {
+                SessionHelper::setFlash('error', 'OTP không hợp lệ hoặc đã hết hạn');
+                SessionHelper::redirect('/verify-otp');
+            }
+
+            $_SESSION['reset_verified_email'] = $_SESSION['otp_email'];
+            unset($_SESSION['otp_email']);
+            SessionHelper::redirect('/reset-password');
+        }
+
+        require __DIR__ . '/../Views/verify_otp.php';
+    }
+
+    public function resetPassword() {
+        if (empty($_SESSION['reset_verified_email'])) {
+            SessionHelper::redirect('/forgot-password');
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $newPassword = trim($_POST['new_password'] ?? '');
+            $confirmPassword = trim($_POST['confirm_password'] ?? '');
+
+            if (strlen($newPassword) < 8) {
+                SessionHelper::setFlash('error', 'Mật khẩu phải có ít nhất 8 ký tự');
+                SessionHelper::redirect('/reset-password');
+            }
+
+            if ($newPassword !== $confirmPassword) {
+                SessionHelper::setFlash('error', 'Mật khẩu xác nhận không khớp');
+                SessionHelper::redirect('/reset-password');
+            }
+
+            $userModel = new UserModel();
+            $email = $_SESSION['reset_verified_email'];
+            $user = $userModel->findByEmail($email);
+
+            if (!$user) {
+                SessionHelper::setFlash('error', 'Email không tồn tại');
+                SessionHelper::redirect('/forgot-password');
+            }
+
+            $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+            $userModel->updatePassword($user['id'], $hash);
+            $userModel->deleteOtp($email);
+            unset($_SESSION['reset_verified_email']);
+
+            LoggingService::write(null, 'reset_password', 'Đặt lại mật khẩu qua OTP');
+            SessionHelper::setFlash('success', 'Đặt lại mật khẩu thành công');
+            SessionHelper::redirect('/login');
+        }
+
+        require __DIR__ . '/../Views/reset_password.php';
+    }
+
 }

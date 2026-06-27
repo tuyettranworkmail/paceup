@@ -33,6 +33,9 @@ $router->add('/login', 'AuthController', 'login');
 $router->add('/register', 'AuthController', 'register');
 $router->add('/logout', 'AuthController', 'logout');
 $router->add('/change-password', 'AuthController', 'changePassword');
+$router->add('/forgot-password', 'AuthController', 'forgotPassword');
+$router->add('/verify-otp', 'AuthController', 'verifyOtp');
+$router->add('/reset-password', 'AuthController', 'resetPassword');
 $router->add('/admin', 'AdminController', 'index');
 $router->add('/apply-coupon', 'CheckoutController', 'applyCoupon');
 
