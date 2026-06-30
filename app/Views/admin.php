@@ -4,17 +4,206 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
     header('Location: login.php');
     exit;
 }
-include __DIR__ . '/partials/header.php';
+
+require_once 'config/db.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+    if ($action === 'add_category') {
+        $name = trim($_POST['name'] ?? '');
+        $status = $_POST['status'] ?? 1;
+        $slug = trim($_POST['slug'] ?? '');
+        if (empty($slug)) {
+            $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $name)));
+        }
+        if (!empty($name)) {
+            $stmt = $pdo->prepare("INSERT INTO categories (name, slug, status) VALUES (?, ?, ?)");
+            $stmt->execute([$name, $slug, $status]);
+            header("Location: ?page=categories&success=1");
+            exit;
+        }
+    } elseif ($action === 'add_coupon') {
+        $code = trim($_POST['code'] ?? '');
+        $usage_limit = $_POST['usage_limit'] ?? 100;
+        $discount_type = $_POST['discount_type'] ?? 'percent';
+        $discount_value = $_POST['discount_value'] ?? 0;
+        $min_order_amount = $_POST['min_order_amount'] ?? 0;
+        $start_date = !empty($_POST['start_date']) ? $_POST['start_date'] : date('Y-m-d H:i:s');
+        $expiry_date = !empty($_POST['expiry_date']) ? $_POST['expiry_date'] : date('Y-m-d H:i:s', strtotime('+30 days'));
+
+        $discount_percent = null;
+        $max_discount = null;
+        if ($discount_type === 'percent') {
+            $discount_percent = $discount_value;
+        } else {
+            $max_discount = $discount_value;
+        }
+
+        if (!empty($code)) {
+            $stmt = $pdo->prepare("INSERT INTO coupons (code, discount_percent, max_discount, min_order_amount, usage_limit, start_date, expiry_date) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$code, $discount_percent, $max_discount, $min_order_amount, $usage_limit, $start_date, $expiry_date]);
+            header("Location: ?page=coupons&success=1");
+            exit;
+        }
+    } elseif ($action === 'add_inventory') {
+        $variant_id = $_POST['variant_id'] ?? 0;
+        $transaction_type = $_POST['transaction_type'] ?? 'in';
+        $quantity = (int)($_POST['quantity'] ?? 0);
+        $reason = trim($_POST['reason'] ?? '');
+        
+        if ($transaction_type === 'out') {
+            $quantity = -$quantity;
+        }
+
+        if ($variant_id > 0 && $quantity !== 0) {
+            $stmt = $pdo->prepare("INSERT INTO inventory_logs (variant_id, quantity_changed, reason) VALUES (?, ?, ?)");
+            $stmt->execute([$variant_id, $quantity, $reason]);
+            header("Location: ?page=inventory&success=1");
+            exit;
+        }
+    } elseif ($action === 'update_order_status') {
+        $order_id = $_POST['order_id'] ?? 0;
+        $status = $_POST['status'] ?? 'pending';
+        
+        $stmt = $pdo->prepare("UPDATE orders SET status = ? WHERE id = ?");
+        $stmt->execute([$status, $order_id]);
+        header("Location: ?page=order_detail&id=$order_id&success=1");
+        exit;
+    } elseif ($action === 'delete_user') {
+        $user_id = $_POST['delete_id'] ?? 0;
+        if ($user_id > 0 && $user_id != $_SESSION['user_id']) {
+            $stmt = $pdo->prepare("DELETE FROM user WHERE id = ?");
+            $stmt->execute([$user_id]);
+        }
+        header("Location: ?page=users&success=1");
+        exit;
+    }
+}
 
 $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
+
+// Fetch data for specific pages
+if ($page === 'users') {
+    $stmt = $pdo->query("SELECT * FROM user ORDER BY id DESC");
+    $admin_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} elseif ($page === 'orders') {
+    $stmt = $pdo->query("
+        SELECT o.*, u.full_name as user_name 
+        FROM orders o 
+        LEFT JOIN user u ON o.user_id = u.id 
+        ORDER BY o.created_at DESC
+    ");
+    $admin_orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Calculate order stats
+    $total_orders_count = count($admin_orders);
+    $total_revenue = 0;
+    $pending_count = 0;
+    foreach ($admin_orders as $o) {
+        if ($o['status'] !== 'canceled') {
+            $total_revenue += $o['final_amount'];
+        }
+        if ($o['status'] === 'pending') {
+            $pending_count++;
+        }
+    }
+    $stmt_cust = $pdo->query("SELECT COUNT(*) FROM user");
+    $total_customers = $stmt_cust->fetchColumn();
+
+} elseif ($page === 'order_detail') {
+    $id = $_GET['id'] ?? 0;
+    
+    // Fetch order
+    $stmt = $pdo->prepare("SELECT * FROM orders WHERE id = ?");
+    $stmt->execute([$id]);
+    $order = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$order) {
+        header("Location: ?page=orders");
+        exit;
+    }
+    
+    // Fetch user info
+    $customer = null;
+    if ($order['user_id']) {
+        $stmt_user = $pdo->prepare("SELECT * FROM user WHERE id = ?");
+        $stmt_user->execute([$order['user_id']]);
+        $customer = $stmt_user->fetch(PDO::FETCH_ASSOC);
+    }
+    
+    // Fetch order items - handling the case where product table might just be 'product' or 'products' and variant_id
+    // Based on previous search, 'product_variants' is the table, and 'product' is the main table.
+    $stmt_items = $pdo->prepare("
+        SELECT oi.*, p.name as product_name, p.image_url as product_image
+        FROM order_items oi
+        LEFT JOIN product_variants pv ON oi.variant_id = pv.id
+        LEFT JOIN product p ON pv.product_id = p.id
+        WHERE oi.order_id = ?
+    ");
+    $stmt_items->execute([$id]);
+    $order_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
+    
+} elseif ($page === 'user_detail') {
+    $id = $_GET['id'] ?? 0;
+    $stmt = $pdo->prepare("SELECT * FROM user WHERE id = ?");
+    $stmt->execute([$id]);
+    $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$customer) {
+        header("Location: ?page=users");
+        exit;
+    }
+    
+    $stmt_addr = $pdo->prepare("SELECT * FROM user_addresses WHERE user_id = ?");
+    $stmt_addr->execute([$id]);
+    $customer_addresses = $stmt_addr->fetchAll(PDO::FETCH_ASSOC);
+    
+    $stmt_orders = $pdo->prepare("SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC");
+    $stmt_orders->execute([$id]);
+    $customer_orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
+    
+    $total_spent = 0;
+    foreach ($customer_orders as $o) {
+        if (!in_array($o['status'], ['cancelled'])) {
+            $total_spent += $o['total_amount'];
+        }
+    }
+}
+
+include __DIR__ . '/partials/header.php';
 ?>
+
+<style>
+    .admin-container button, 
+    .admin-container .btn,
+    .admin-header button {
+        transition: all 0.25s ease;
+        cursor: pointer;
+    }
+    .admin-container button:hover, 
+    .admin-container .btn:hover,
+    .admin-header button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        opacity: 0.9;
+    }
+    .admin-container button:active, 
+    .admin-container .btn:active,
+    .admin-header button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+</style>
 
 <div class="admin-container">
     <aside class="admin-sidebar">
         <ul>
             <li><a href="?page=dashboard" class="<?= $page === 'dashboard' ? 'active' : '' ?>">Dashboard</a></li>
             <li><a href="?page=products" class="<?= $page === 'products' ? 'active' : '' ?>">Sản phẩm</a></li>
+            <li><a href="?page=categories" class="<?= $page === 'categories' ? 'active' : '' ?>">Danh mục</a></li>
             <li><a href="?page=orders" class="<?= $page === 'orders' ? 'active' : '' ?>">Đơn hàng</a></li>
+            <li><a href="?page=inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">Kho hàng</a></li>
+            <li><a href="?page=coupons" class="<?= $page === 'coupons' ? 'active' : '' ?>">Mã giảm giá</a></li>
             <li><a href="?page=users" class="<?= $page === 'users' ? 'active' : '' ?>">Người dùng</a></li>
             <li><a href="?page=settings" class="<?= $page === 'settings' ? 'active' : '' ?>">Cài đặt</a></li>
         </ul>
@@ -202,6 +391,25 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
                 </div>
             </div>
 
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
+                <div style="background: #fff; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
+                    <div style="color: #666; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; font-family: var(--font-ui);">Total Orders</div>
+                    <div style="font-size: 1.8rem; font-weight: 800; font-family: var(--font-ui); color: #111;"><?= $total_orders_count ?></div>
+                </div>
+                <div style="background: #fff; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
+                    <div style="color: #666; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; font-family: var(--font-ui);">Revenue</div>
+                    <div style="font-size: 1.8rem; font-weight: 800; font-family: var(--font-ui); color: #111;"><?= number_format($total_revenue, 0, ',', '.') ?> ₫</div>
+                </div>
+                <div style="background: #fff; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
+                    <div style="color: #666; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; font-family: var(--font-ui);">Pending</div>
+                    <div style="font-size: 1.8rem; font-weight: 800; font-family: var(--font-ui); color: #111;"><?= $pending_count ?></div>
+                </div>
+                <div style="background: #fff; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
+                    <div style="color: #666; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; font-family: var(--font-ui);">Customers</div>
+                    <div style="font-size: 1.8rem; font-weight: 800; font-family: var(--font-ui); color: #111;"><?= $total_customers ?></div>
+                </div>
+            </div>
+
             <div class="table-wrapper">
                 <table class="table">
                     <thead>
@@ -216,53 +424,194 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
                         </tr>
                     </thead>
                     <tbody>
+                        <?php foreach ($admin_orders as $o): ?>
                         <tr>
-                            <td>#ORD-001</td>
-                            <td>Nguyễn Văn A</td>
-                            <td>25/06/2026</td>
-                            <td>COD</td>
-                            <td>3.800.000 ₫</td>
-                            <td><span style="background: #E3F2FD; color: #1976D2; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Mới</span></td>
+                            <td>#ORD-<?= str_pad($o['id'], 3, '0', STR_PAD_LEFT) ?></td>
+                            <td><?= htmlspecialchars($o['user_name'] ?? $o['shipping_name'] ?? 'Khách lẻ') ?></td>
+                            <td><?= date('d/m/Y', strtotime($o['created_at'])) ?></td>
+                            <td><?= htmlspecialchars($o['payment_method'] ?? 'COD') ?></td>
+                            <td><?= number_format($o['final_amount'], 0, ',', '.') ?> ₫</td>
                             <td>
-                                <a href="#" style="color: #2196F3; margin-right: 10px; font-weight: bold; font-size: 0.9rem;">Chi tiết</a>
-                                <a href="#" style="color: #4CAF50; font-weight: bold; font-size: 0.9rem;">Duyệt</a>
+                                <?php
+                                $status_colors = [
+                                    'pending' => ['#E3F2FD', '#1976D2', 'Mới'],
+                                    'confirmed' => ['#E8EAF6', '#3F51B5', 'Đã xác nhận'],
+                                    'shipping' => ['#FFF3E0', '#F57C00', 'Đang giao'],
+                                    'delivered' => ['#E8F5E9', '#388E3C', 'Hoàn thành'],
+                                    'canceled' => ['#FFEBEE', '#D32F2F', 'Đã huỷ']
+                                ];
+                                $s = $status_colors[$o['status']] ?? ['#f5f5f5', '#333', 'Khác'];
+                                ?>
+                                <span style="background: <?= $s[0] ?>; color: <?= $s[1] ?>; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;"><?= $s[2] ?></span>
+                            </td>
+                            <td>
+                                <a href="?page=order_detail&id=<?= $o['id'] ?>" style="color: #2196F3; margin-right: 10px; font-weight: bold; font-size: 0.9rem;">Chi tiết</a>
                             </td>
                         </tr>
+                        <?php endforeach; ?>
+                        <?php if (empty($admin_orders)): ?>
                         <tr>
-                            <td>#ORD-002</td>
-                            <td>Trần Thị B</td>
-                            <td>24/06/2026</td>
-                            <td>MoMo</td>
-                            <td>4.200.000 ₫</td>
-                            <td><span style="background: #FFF3E0; color: #F57C00; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Đang giao</span></td>
-                            <td>
-                                <a href="#" style="color: #2196F3; margin-right: 10px; font-weight: bold; font-size: 0.9rem;">Chi tiết</a>
-                            </td>
+                            <td colspan="7" style="text-align: center; padding: 2rem;">Chưa có đơn hàng nào.</td>
                         </tr>
-                        <tr>
-                            <td>#ORD-003</td>
-                            <td>Lê Văn C</td>
-                            <td>23/06/2026</td>
-                            <td>Chuyển khoản</td>
-                            <td>2.100.000 ₫</td>
-                            <td><span style="background: #E8F5E9; color: #388E3C; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Hoàn thành</span></td>
-                            <td>
-                                <a href="#" style="color: #2196F3; font-weight: bold; font-size: 0.9rem;">Chi tiết</a>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>#ORD-004</td>
-                            <td>Phạm Hoàng D</td>
-                            <td>20/06/2026</td>
-                            <td>COD</td>
-                            <td>5.500.000 ₫</td>
-                            <td><span style="background: #FFEBEE; color: #D32F2F; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Đã huỷ</span></td>
-                            <td>
-                                <a href="#" style="color: #2196F3; font-weight: bold; font-size: 0.9rem;">Chi tiết</a>
-                            </td>
-                        </tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
+            </div>
+
+        <?php elseif ($page === 'order_detail'): ?>
+            <div class="admin-header" style="border-bottom: none; margin-bottom: 1rem;">
+                <div>
+                    <h2>Order Details</h2>
+                    <p style="color: #666; font-family: var(--font-ui); font-size: 0.95rem;">Sales / Orders / #ORD-<?= str_pad($order['id'], 3, '0', STR_PAD_LEFT) ?></p>
+                </div>
+                <a href="?page=orders" style="font-weight: 600; font-family: var(--font-ui); color: #111; padding: 8px 16px; border: 1px solid #ddd; border-radius: 6px; background: #fff;">&larr; Back</a>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2.5rem;">
+                <!-- Left Column -->
+                <div>
+                    <div style="background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
+                        <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading); font-size: 1.2rem;">Product Details</h3>
+                        <table style="width: 100%; border-collapse: collapse; font-family: var(--font-ui); font-size: 0.9rem;">
+                            <thead>
+                                <tr style="color: #888; font-size: 0.8rem; text-transform: uppercase; border-bottom: 1px solid #eee;">
+                                    <th style="padding-bottom: 1rem; text-align: left;">Product</th>
+                                    <th style="padding-bottom: 1rem; text-align: left;">Unit Price</th>
+                                    <th style="padding-bottom: 1rem; text-align: left;">Qty</th>
+                                    <th style="padding-bottom: 1rem; text-align: right;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($order_items as $item): ?>
+                                <tr style="border-bottom: 1px solid #f5f5f5;">
+                                    <td style="padding: 1rem 0; display: flex; align-items: center; gap: 1rem;">
+                                        <div style="width: 50px; height: 50px; border-radius: 6px; overflow: hidden; background: #eee;">
+                                            <img src="<?= BASE_URL . ($item['product_image'] ?? 'assets/images/placeholder.jpg') ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                                        </div>
+                                        <span style="font-weight: 600; color: #111;"><?= htmlspecialchars($item['product_name'] ?? 'Sản phẩm') ?></span>
+                                    </td>
+                                    <td style="color: #666;"><?= number_format($item['price_at_time'], 0, ',', '.') ?> ₫</td>
+                                    <td style="color: #111; font-weight: 600;"><?= $item['quantity'] ?></td>
+                                    <td style="text-align: right; font-weight: 700; color: #111;"><?= number_format($item['price_at_time'] * $item['quantity'], 0, ',', '.') ?> ₫</td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        
+                        <div style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1.5rem; font-family: var(--font-ui);">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: #666;">
+                                <span>Subtotal</span>
+                                <span style="font-weight: 600; color: #111;"><?= number_format($order['total_amount'], 0, ',', '.') ?> ₫</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: #666;">
+                                <span>Shipping</span>
+                                <span style="font-weight: 600; color: #4CAF50;">FREE</span>
+                            </div>
+                            <?php 
+                            $discount = $order['total_amount'] - $order['final_amount']; 
+                            if ($discount > 0): 
+                            ?>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; color: #666;">
+                                <span>Discount</span>
+                                <span style="font-weight: 600; color: #D32F2F;">- <?= number_format($discount, 0, ',', '.') ?> ₫</span>
+                            </div>
+                            <?php endif; ?>
+                            
+                            <div style="display: flex; justify-content: space-between; margin-top: 1rem; border-top: 1px solid #eee; padding-top: 1rem;">
+                                <span style="font-weight: 700; font-size: 1.2rem; color: #111;">Total</span>
+                                <span style="font-weight: 800; font-size: 1.5rem; color: #111;"><?= number_format($order['final_amount'], 0, ',', '.') ?> ₫</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <!-- Transaction Info -->
+                    <div style="background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0; font-family: var(--font-ui);">
+                        <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading); font-size: 1.1rem;">Transaction Info</h3>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="color: #888; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.2rem;">Order Code</div>
+                            <div style="color: #111; font-weight: 600;">#ORD-<?= str_pad($order['id'], 3, '0', STR_PAD_LEFT) ?></div>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="color: #888; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.2rem;">Order Date</div>
+                            <div style="color: #111; font-weight: 600;"><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></div>
+                        </div>
+                        <div>
+                            <div style="color: #888; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.2rem;">Payment Gateway</div>
+                            <div style="color: #111; font-weight: 600; text-transform: uppercase;"><?= htmlspecialchars($order['payment_method'] ?? 'COD') ?></div>
+                        </div>
+                    </div>
+
+                    <!-- Customer Information -->
+                    <div style="background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0; font-family: var(--font-ui);">
+                        <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading); font-size: 1.1rem;">Customer Information</h3>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="color: #888; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.2rem;">Full Name & Email</div>
+                            <div style="color: #111; font-weight: 600;"><?= htmlspecialchars($order['shipping_name'] ?? $customer['full_name'] ?? '') ?></div>
+                            <div style="color: #666; font-size: 0.9rem;"><?= htmlspecialchars($order['shipping_email'] ?? $customer['email'] ?? 'N/A') ?></div>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="color: #888; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.2rem;">Phone</div>
+                            <div style="color: #111; font-weight: 600;"><?= htmlspecialchars($order['shipping_phone'] ?? 'N/A') ?></div>
+                        </div>
+                        <div style="margin-bottom: 1.5rem;">
+                            <div style="color: #888; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.2rem;">Shipping Address</div>
+                            <div style="color: #111; font-weight: 600; font-size: 0.9rem; line-height: 1.5;"><?= htmlspecialchars($order['shipping_address'] ?? 'N/A') ?></div>
+                        </div>
+                        <div style="background: #FFF9C4; padding: 1rem; border-radius: 6px; border-left: 4px solid #FBC02D;">
+                            <div style="color: #F57F17; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; margin-bottom: 0.2rem;">Customer Note</div>
+                            <div style="color: #E65100; font-size: 0.9rem; font-style: italic;">No specific note for this order.</div>
+                        </div>
+                    </div>
+
+                    <!-- Order Status -->
+                    <div style="background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
+                        <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading); font-size: 1.1rem;">Order Status</h3>
+                        <form action="" method="POST">
+                            <input type="hidden" name="action" value="update_order_status">
+                            <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
+                            <?php
+                            $status_colors = [
+                                'pending' => ['#FFF3E0', '#F57C00', 'Pending'],
+                                'confirmed' => ['#E8EAF6', '#3F51B5', 'Confirmed'],
+                                'shipping' => ['#E3F2FD', '#1976D2', 'Shipping'],
+                                'delivered' => ['#E8F5E9', '#388E3C', 'Delivered'],
+                                'canceled' => ['#FFEBEE', '#D32F2F', 'Canceled']
+                            ];
+                            $s = $status_colors[$order['status']] ?? ['#f5f5f5', '#333', 'Unknown'];
+                            ?>
+                            <div style="margin-bottom: 1rem;">
+                                <span style="background: <?= $s[0] ?>; color: <?= $s[1] ?>; padding: 6px 16px; border-radius: 100px; font-size: 0.85rem; font-weight: 700; font-family: var(--font-ui);"><?= $s[2] ?></span>
+                            </div>
+                            <select name="status" style="width: 100%; padding: 0.8rem; margin-bottom: 1rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui); font-weight: 600; outline: none;">
+                                <option value="pending" <?= $order['status'] === 'pending' ? 'selected' : '' ?>>Pending</option>
+                                <option value="confirmed" <?= $order['status'] === 'confirmed' ? 'selected' : '' ?>>Confirmed</option>
+                                <option value="shipping" <?= $order['status'] === 'shipping' ? 'selected' : '' ?>>Shipping</option>
+                                <option value="delivered" <?= $order['status'] === 'delivered' ? 'selected' : '' ?>>Delivered</option>
+                                <option value="canceled" <?= $order['status'] === 'canceled' ? 'selected' : '' ?>>Canceled</option>
+                            </select>
+                            <button type="submit" style="width: 100%; padding: 0.8rem; background: #111; color: #fff; border: none; border-radius: 6px; font-weight: 600; font-family: var(--font-ui); cursor: pointer; transition: 0.3s;">Update</button>
+                        </form>
+                    </div>
+
+                    <!-- Payment Status -->
+                    <div style="background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
+                        <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading); font-size: 1.1rem;">Payment Status</h3>
+                        <?php 
+                        $is_paid = ($order['payment_method'] !== 'COD' && $order['status'] !== 'canceled') || $order['status'] === 'delivered';
+                        $p_colors = $is_paid ? ['#E8F5E9', '#388E3C', 'Paid'] : ['#FFF3E0', '#F57C00', 'Unpaid'];
+                        ?>
+                        <div style="margin-bottom: 1rem;">
+                            <span style="background: <?= $p_colors[0] ?>; color: <?= $p_colors[1] ?>; padding: 6px 16px; border-radius: 100px; font-size: 0.85rem; font-weight: 700; font-family: var(--font-ui);"><?= $p_colors[2] ?></span>
+                        </div>
+                        <select disabled style="width: 100%; padding: 0.8rem; margin-bottom: 1rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui); font-weight: 600; outline: none; background: #fafafa; color: #666;">
+                            <option><?= $p_colors[2] ?></option>
+                        </select>
+                        <button disabled style="width: 100%; padding: 0.8rem; background: #ccc; color: #fff; border: none; border-radius: 6px; font-weight: 600; font-family: var(--font-ui); cursor: not-allowed;">Update</button>
+                    </div>
+                </div>
             </div>
 
         <?php elseif ($page === 'users'): ?>
@@ -278,48 +627,143 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
                             <th>ID</th>
                             <th>Họ tên</th>
                             <th>Email</th>
-                            <th>Số điện thoại</th>
                             <th>Vai trò</th>
                             <th>Ngày tham gia</th>
                             <th>Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
+                        <?php foreach ($admin_users as $u): ?>
                         <tr>
-                            <td>1</td>
-                            <td>Admin PaceUp</td>
-                            <td>admin@paceup.vn</td>
-                            <td>0901234567</td>
-                            <td><span style="background: #E0E0E0; color: #333; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Admin</span></td>
-                            <td>01/01/2026</td>
+                            <td><?= $u['id'] ?></td>
                             <td>
-                                <a href="#" style="color: #2196F3; margin-right: 15px; font-weight: bold;">Sửa</a>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background: #eee;">
+                                        <img src="<?= !empty($u['avatar']) ? BASE_URL . $u['avatar'] : 'https://ui-avatars.com/api/?name='.urlencode($u['full_name']).'&background=2A9D8F&color=fff&size=40' ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </div>
+                                    <span><?= htmlspecialchars($u['full_name']) ?></span>
+                                </div>
+                            </td>
+                            <td><?= htmlspecialchars($u['email']) ?></td>
+                            <td><span style="background: <?= $u['role'] === 'admin' ? '#E0E0E0' : '#E3F2FD' ?>; color: <?= $u['role'] === 'admin' ? '#333' : '#1976D2' ?>; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;"><?= ucfirst($u['role']) ?></span></td>
+                            <td><?= date('d/m/Y', strtotime($u['created_at'])) ?></td>
+                            <td>
+                                <a href="?page=user_detail&id=<?= $u['id'] ?>" style="color: #2196F3; margin-right: 15px; font-weight: bold;">Chi tiết</a>
+                                <?php if ($u['id'] !== $_SESSION['user_id']): ?>
+                                <a href="javascript:void(0)" onclick="confirmDelete(<?= $u['id'] ?>, 'delete_user')" style="color: #F44336; font-weight: bold;">Xóa</a>
+                                <?php endif; ?>
                             </td>
                         </tr>
+                        <?php endforeach; ?>
+                        <?php if (empty($admin_users)): ?>
                         <tr>
-                            <td>2</td>
-                            <td>Nguyễn Văn A</td>
-                            <td>nguyenvana@gmail.com</td>
-                            <td>0912345678</td>
-                            <td><span style="background: #E3F2FD; color: #1976D2; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Khách hàng</span></td>
-                            <td>15/06/2026</td>
-                            <td>
-                                <a href="#" style="color: #2196F3; margin-right: 15px; font-weight: bold;">Sửa</a>
-                                <a href="#" style="color: #F44336; font-weight: bold;">Xóa</a>
-                            </td>
+                            <td colspan="6" style="text-align: center;">Chưa có người dùng nào.</td>
                         </tr>
-                        <tr>
-                            <td>3</td>
-                            <td>Trần Thị B</td>
-                            <td>tranthib@gmail.com</td>
-                            <td>0987654321</td>
-                            <td><span style="background: #E3F2FD; color: #1976D2; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Khách hàng</span></td>
-                            <td>20/06/2026</td>
-                            <td>
-                                <a href="#" style="color: #2196F3; margin-right: 15px; font-weight: bold;">Sửa</a>
-                                <a href="#" style="color: #F44336; font-weight: bold;">Khóa</a>
-                            </td>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+        <?php elseif ($page === 'user_detail'): ?>
+            <div class="admin-header" style="border-bottom: none; margin-bottom: 1rem;">
+                <div>
+                    <h2>Customer Detail</h2>
+                    <p style="color: #666; font-family: var(--font-ui); font-size: 0.95rem;">View customer profile, addresses, notes and order history.</p>
+                </div>
+                <a href="?page=users" style="font-weight: 600; font-family: var(--font-ui); color: #111;">&larr; Back to Customers</a>
+            </div>
+
+            <!-- Profile and Stats Grid -->
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <!-- Profile Card -->
+                <div style="background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0; display: flex; align-items: flex-start; gap: 2rem;">
+                    <div style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; background: #eee; flex-shrink: 0; border: 3px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <img src="<?= !empty($customer['avatar']) ? BASE_URL . $customer['avatar'] : 'https://ui-avatars.com/api/?name='.urlencode($customer['full_name']).'&background=2A9D8F&color=fff&size=100' ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    <div>
+                        <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem; color: #111; font-family: var(--font-heading);"><?= htmlspecialchars($customer['full_name']) ?></h3>
+                        <div style="color: #666; font-family: var(--font-ui); font-size: 0.9rem; line-height: 1.6;">
+                            <div>Email: <?= htmlspecialchars($customer['email']) ?></div>
+                            <!--<div>Phone: 0913000010</div>-->
+                            <!--<div>Gender: female</div>-->
+                            <div>Date of birth: N/A</div>
+                            <div>Joined: <?= date('d/m/Y', strtotime($customer['created_at'])) ?></div>
+                            <div>Last login: N/A</div>
+                        </div>
+                        <div style="margin-top: 1rem;">
+                            <span style="background: #E8F5E9; color: #388E3C; padding: 4px 12px; border-radius: 100px; font-size: 0.8rem; font-weight: 700; font-family: var(--font-ui);">Active</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <div style="background: #fafafa; padding: 1.5rem; border-radius: 12px; border: 1px solid #f0f0f0;">
+                        <div style="font-size: 1.5rem; font-weight: 800; font-family: var(--font-ui); color: #111; margin-bottom: 0.2rem;"><?= count($customer_orders) ?></div>
+                        <div style="color: #888; font-size: 0.85rem; font-family: var(--font-ui);">Total Orders</div>
+                    </div>
+                    <div style="background: #fafafa; padding: 1.5rem; border-radius: 12px; border: 1px solid #f0f0f0;">
+                        <div style="font-size: 1.5rem; font-weight: 800; font-family: var(--font-ui); color: #111; margin-bottom: 0.2rem;">$<?= number_format($total_spent, 2) ?></div>
+                        <div style="color: #888; font-size: 0.85rem; font-family: var(--font-ui);">Total Spent</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Addresses and Notes Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <div style="background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
+                    <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading); font-size: 1.2rem;">Addresses</h3>
+                    <?php if (empty($customer_addresses)): ?>
+                        <p style="color: #888; font-style: italic;">No addresses found.</p>
+                    <?php else: ?>
+                        <?php foreach ($customer_addresses as $addr): ?>
+                        <div style="margin-bottom: 1rem; color: #666; font-family: var(--font-ui); font-size: 0.9rem; line-height: 1.5;">
+                            <strong style="color: #111; font-size: 1rem;"><?= htmlspecialchars($customer['full_name']) ?> <span style="background: #E8EAF6; color: #3F51B5; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-left: 5px;">Default</span></strong><br>
+                            <?= htmlspecialchars($addr['phone'] ?? 'N/A') ?><br>
+                            <?= htmlspecialchars($addr['address_line1']) ?><br>
+                            <?= htmlspecialchars($addr['city']) ?> <?= htmlspecialchars($addr['postal_code']) ?><br>
+                            <?= htmlspecialchars($addr['country']) ?>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+                
+                <div style="background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
+                    <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading); font-size: 1.2rem;">Customer Notes</h3>
+                    <p style="color: #333; font-family: var(--font-ui); font-size: 0.95rem;">Demo customer generated for dashboard and report testing.</p>
+                    <p style="color: #888; font-family: var(--font-ui); font-size: 0.85rem; margin-top: 0.5rem;">By PaceUp Admin • <?= date('d/m/Y H:i', strtotime($customer['created_at'])) ?></p>
+                </div>
+            </div>
+
+            <!-- Order History Table -->
+            <div style="background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
+                <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading); font-size: 1.2rem;">Order History</h3>
+                <table class="table" style="width: 100%; border-collapse: collapse; text-align: left; font-family: var(--font-ui); font-size: 0.9rem;">
+                    <thead>
+                        <tr style="color: #666; border-bottom: 1px solid #eee;">
+                            <th style="padding: 1rem 0;">Order Code</th>
+                            <th>Total</th>
+                            <th>Payment</th>
+                            <th>Payment Status</th>
+                            <th>Order Status</th>
+                            <th>Date</th>
                         </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($customer_orders)): ?>
+                        <tr><td colspan="6" style="padding: 1rem 0; color: #888;">No orders found.</td></tr>
+                        <?php else: ?>
+                            <?php foreach ($customer_orders as $o): ?>
+                            <tr style="border-bottom: 1px solid #fafafa;">
+                                <td style="padding: 1rem 0; color: #111;">#ORD-<?= str_pad($o['id'], 3, '0', STR_PAD_LEFT) ?></td>
+                                <td style="color: #111;">$<?= number_format($o['total_amount'], 2) ?></td>
+                                <td style="color: #666;"><?= htmlspecialchars($o['payment_method'] ?? 'COD') ?></td>
+                                <td><span style="background: #f5f5f5; color: #333; padding: 4px 10px; border-radius: 100px; font-size: 0.8rem; font-weight: 600;">paid</span></td>
+                                <td><span style="background: #f5f5f5; color: #333; padding: 4px 10px; border-radius: 100px; font-size: 0.8rem; font-weight: 600;"><?= htmlspecialchars($o['status']) ?></span></td>
+                                <td style="color: #666;"><?= date('d/m/Y H:i', strtotime($o['created_at'])) ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -342,6 +786,328 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
                     <input type="text" value="30.000" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px;">
                 </div>
                 <button class="btn btn-dark">Lưu cài đặt</button>
+            </div>
+
+        <?php elseif ($page === 'categories'): ?>
+            <div class="admin-header">
+                <h2>Quản lý danh mục</h2>
+                <button class="btn btn-dark" onclick="openModal('categoryModal')">Thêm danh mục</button>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tên danh mục</th>
+                            <th>Đường dẫn (Slug)</th>
+                            <th>Sản phẩm</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><strong style="font-family: var(--font-ui);">Giày Chạy Bộ</strong></td>
+                            <td><span style="color: #666; font-size: 0.9rem;">giay-chay-bo</span></td>
+                            <td>45</td>
+                            <td><span style="background: #E8F5E9; color: #388E3C; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Hoạt động</span></td>
+                            <td>
+                                <a href="javascript:void(0)" onclick="openModal('categoryModal')" style="color: #2196F3; margin-right: 15px; font-weight: bold;">Sửa</a>
+                                <a href="javascript:void(0)" onclick="confirmDelete(1)" style="color: #F44336; font-weight: bold;">Xóa</a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><strong style="font-family: var(--font-ui);">Giày Thời Trang</strong></td>
+                            <td><span style="color: #666; font-size: 0.9rem;">giay-thoi-trang</span></td>
+                            <td>82</td>
+                            <td><span style="background: #E8F5E9; color: #388E3C; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Hoạt động</span></td>
+                            <td>
+                                <a href="javascript:void(0)" onclick="openModal('categoryModal')" style="color: #2196F3; margin-right: 15px; font-weight: bold;">Sửa</a>
+                                <a href="javascript:void(0)" onclick="confirmDelete(2)" style="color: #F44336; font-weight: bold;">Xóa</a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td><strong style="font-family: var(--font-ui);">Phụ Kiện</strong></td>
+                            <td><span style="color: #666; font-size: 0.9rem;">phu-kien</span></td>
+                            <td>0</td>
+                            <td><span style="background: #FFEBEE; color: #D32F2F; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Ẩn</span></td>
+                            <td>
+                                <a href="javascript:void(0)" onclick="openModal('categoryModal')" style="color: #2196F3; margin-right: 15px; font-weight: bold;">Sửa</a>
+                                <a href="javascript:void(0)" onclick="confirmDelete(3)" style="color: #F44336; font-weight: bold;">Xóa</a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Modal Thêm/Sửa Danh Mục -->
+            <div id="categoryModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+                <div style="background: #fff; width: 100%; max-width: 500px; border-radius: 12px; padding: 2rem; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+                    <button onclick="closeModal('categoryModal')" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
+                    <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading); font-size: 1.5rem; text-transform: uppercase;">Thông tin danh mục</h3>
+                    
+                    <form action="?page=categories" method="POST">
+                        <input type="hidden" name="action" value="add_category">
+                        <div style="margin-bottom: 1.5rem;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Tên danh mục *</label>
+                            <input type="text" name="name" required placeholder="Nhập tên danh mục" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
+                        </div>
+
+                        <div style="margin-bottom: 1.5rem;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Đường dẫn (Slug)</label>
+                            <input type="text" name="slug" placeholder="Để trống để tự tạo từ tên danh mục" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
+                        </div>
+                        
+                        <div style="margin-bottom: 1.5rem;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Trạng thái</label>
+                            <select name="status" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
+                                <option value="1">Hoạt động</option>
+                                <option value="0">Ẩn</option>
+                            </select>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                            <button type="button" onclick="closeModal('categoryModal')" style="padding: 0.8rem 1.5rem; background: #f5f5f5; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; color: #333;">Hủy</button>
+                            <button type="submit" class="btn btn-dark" style="padding: 0.8rem 1.5rem; border-radius: 6px;">Lưu danh mục</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        <?php elseif ($page === 'inventory'): ?>
+            <div class="admin-header">
+                <h2>Quản lý kho hàng</h2>
+                <button class="btn btn-dark" onclick="openModal('inventoryModal')">Nhập kho</button>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Sản phẩm</th>
+                            <th>Mã SP (SKU)</th>
+                            <th>Tồn kho</th>
+                            <th>Trạng thái kho</th>
+                            <th>Lần nhập cuối</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <img src="<?= BASE_URL ?>assets/images/AIR+ZOOM+PEGASUS+42+WIDE.avif" alt="Shoe" width="40" height="40" style="object-fit: contain; background: #f5f5f5; border-radius: 4px;">
+                                    <strong style="font-family: var(--font-ui);">Nike Air Zoom Pegasus 42</strong>
+                                </div>
+                            </td>
+                            <td><span style="color: #666; font-size: 0.9rem;">NK-PEG42-BLK</span></td>
+                            <td><strong style="font-size: 1.1rem;">124</strong></td>
+                            <td><span style="background: #E8F5E9; color: #388E3C; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Đủ hàng</span></td>
+                            <td>20/06/2026</td>
+                            <td>
+                                <a href="javascript:void(0)" onclick="openModal('inventoryModal')" style="color: #2196F3; font-weight: bold;">Cập nhật</a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <img src="<?= BASE_URL ?>assets/images/NIKE+SB+DUNK+LOW+PRO.avif" alt="Shoe" width="40" height="40" style="object-fit: contain; background: #f5f5f5; border-radius: 4px;">
+                                    <strong style="font-family: var(--font-ui);">Nike SB Dunk Low Pro</strong>
+                                </div>
+                            </td>
+                            <td><span style="color: #666; font-size: 0.9rem;">NK-DUNK-LOW</span></td>
+                            <td><strong style="font-size: 1.1rem; color: #F57C00;">5</strong></td>
+                            <td><span style="background: #FFF3E0; color: #F57C00; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Sắp hết</span></td>
+                            <td>15/05/2026</td>
+                            <td>
+                                <a href="javascript:void(0)" onclick="openModal('inventoryModal')" style="color: #2196F3; font-weight: bold;">Cập nhật</a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 40px; height: 40px; background: #eee; border-radius: 4px;"></div>
+                                    <strong style="font-family: var(--font-ui);">Adidas Ultraboost Light</strong>
+                                </div>
+                            </td>
+                            <td><span style="color: #666; font-size: 0.9rem;">AD-UB-LGT</span></td>
+                            <td><strong style="font-size: 1.1rem; color: #D32F2F;">0</strong></td>
+                            <td><span style="background: #FFEBEE; color: #D32F2F; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Hết hàng</span></td>
+                            <td>10/04/2026</td>
+                            <td>
+                                <a href="javascript:void(0)" onclick="openModal('inventoryModal')" style="color: #2196F3; font-weight: bold;">Cập nhật</a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Modal Nhập Kho -->
+            <div id="inventoryModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+                <div style="background: #fff; width: 100%; max-width: 500px; border-radius: 12px; padding: 2rem; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+                    <button onclick="closeModal('inventoryModal')" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
+                    <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading); font-size: 1.5rem; text-transform: uppercase;">Cập nhật kho hàng</h3>
+                    
+                    <form action="?page=inventory" method="POST">
+                        <input type="hidden" name="action" value="add_inventory">
+                        <div style="margin-bottom: 1.5rem;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Chọn sản phẩm *</label>
+                            <select name="variant_id" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
+                                <option value="1">Nike Air Zoom Pegasus 42</option>
+                                <option value="2">Nike SB Dunk Low Pro</option>
+                                <option value="3">Adidas Ultraboost Light</option>
+                            </select>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                            <div>
+                                <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Loại giao dịch *</label>
+                                <select name="transaction_type" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
+                                    <option value="in">Nhập thêm (+)</option>
+                                    <option value="out">Xuất kho (-)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Số lượng *</label>
+                                <input type="number" name="quantity" required min="1" placeholder="Nhập số lượng" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 1.5rem;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Ghi chú</label>
+                            <textarea name="reason" rows="2" placeholder="Ví dụ: Nhập hàng đợt 2 tháng 6" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui); resize: vertical;"></textarea>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                            <button type="button" onclick="closeModal('inventoryModal')" style="padding: 0.8rem 1.5rem; background: #f5f5f5; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; color: #333;">Hủy</button>
+                            <button type="submit" class="btn btn-dark" style="padding: 0.8rem 1.5rem; border-radius: 6px;">Cập nhật</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        <?php elseif ($page === 'coupons'): ?>
+            <div class="admin-header">
+                <h2>Mã giảm giá</h2>
+                <button class="btn btn-dark" onclick="openModal('couponModal')">Tạo mã mới</button>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Mã Code</th>
+                            <th>Mức giảm</th>
+                            <th>Điều kiện</th>
+                            <th>Đã dùng / Tổng</th>
+                            <th>Hạn sử dụng</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong style="font-family: var(--font-ui); background: #f5f5f5; padding: 4px 8px; border-radius: 4px; border: 1px dashed #ccc; letter-spacing: 1px;">SUMMER26</strong></td>
+                            <td><strong style="color: #D32F2F;">-10%</strong></td>
+                            <td>Đơn tối thiểu 1tr</td>
+                            <td>45 / 100</td>
+                            <td><span style="color: #666;">31/07/2026</span></td>
+                            <td><span style="background: #E8F5E9; color: #388E3C; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Khả dụng</span></td>
+                            <td>
+                                <a href="javascript:void(0)" onclick="openModal('couponModal')" style="color: #2196F3; margin-right: 10px; font-weight: bold;">Sửa</a>
+                                <a href="javascript:void(0)" onclick="confirmDelete('SUMMER26')" style="color: #F44336; font-weight: bold;">Xóa</a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong style="font-family: var(--font-ui); background: #f5f5f5; padding: 4px 8px; border-radius: 4px; border: 1px dashed #ccc; letter-spacing: 1px;">FREESHIP</strong></td>
+                            <td><strong style="color: #D32F2F;">-30.000₫</strong></td>
+                            <td>Không điều kiện</td>
+                            <td>120 / 500</td>
+                            <td><span style="color: #666;">31/12/2026</span></td>
+                            <td><span style="background: #E8F5E9; color: #388E3C; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Khả dụng</span></td>
+                            <td>
+                                <a href="javascript:void(0)" onclick="openModal('couponModal')" style="color: #2196F3; margin-right: 10px; font-weight: bold;">Sửa</a>
+                                <a href="javascript:void(0)" onclick="confirmDelete('FREESHIP')" style="color: #F44336; font-weight: bold;">Xóa</a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong style="font-family: var(--font-ui); background: #f5f5f5; padding: 4px 8px; border-radius: 4px; border: 1px dashed #ccc; letter-spacing: 1px;">FLASH50</strong></td>
+                            <td><strong style="color: #D32F2F;">-50%</strong></td>
+                            <td>Đơn tối đa 500k</td>
+                            <td>50 / 50</td>
+                            <td><span style="color: #D32F2F; font-weight: bold;">Đã hết hạn</span></td>
+                            <td><span style="background: #FFEBEE; color: #D32F2F; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Hết lượt</span></td>
+                            <td>
+                                <a href="javascript:void(0)" onclick="openModal('couponModal')" style="color: #2196F3; margin-right: 10px; font-weight: bold;">Sửa</a>
+                                <a href="javascript:void(0)" onclick="confirmDelete('FLASH50')" style="color: #F44336; font-weight: bold;">Xóa</a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Modal Tạo Mã Mới -->
+            <div id="couponModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+                <div style="background: #fff; width: 100%; max-width: 550px; border-radius: 12px; padding: 2rem; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+                    <button onclick="closeModal('couponModal')" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
+                    <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading); font-size: 1.5rem; text-transform: uppercase;">Thông tin mã giảm giá</h3>
+                    
+                    <form action="?page=coupons" method="POST">
+                        <input type="hidden" name="action" value="add_coupon">
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                            <div>
+                                <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Mã Code (Tự nhập hoặc tạo ngẫu nhiên) *</label>
+                                <div style="display: flex; gap: 10px;">
+                                    <input type="text" name="code" required placeholder="VD: SUMMER26" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui); text-transform: uppercase;">
+                                    <button type="button" style="padding: 0 1rem; background: #eee; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-weight: bold;" onclick="alert('Đã tạo mã ngẫu nhiên')">Tạo</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Số lượng</label>
+                                <input type="number" name="usage_limit" value="100" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                            <div>
+                                <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Loại giảm giá</label>
+                                <select name="discount_type" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
+                                    <option value="percent">Phần trăm (%)</option>
+                                    <option value="fixed">Số tiền cố định (VNĐ)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Mức giảm *</label>
+                                <input type="number" name="discount_value" required placeholder="Ví dụ: 10" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                            <div>
+                                <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Ngày bắt đầu</label>
+                                <input type="date" name="start_date" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Hạn sử dụng *</label>
+                                <input type="date" name="expiry_date" required style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 1.5rem;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Đơn tối thiểu (VNĐ)</label>
+                            <input type="number" name="min_order_amount" placeholder="0" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui);">
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                            <button type="button" onclick="closeModal('couponModal')" style="padding: 0.8rem 1.5rem; background: #f5f5f5; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; color: #333;">Hủy</button>
+                            <button type="submit" class="btn btn-dark" style="padding: 0.8rem 1.5rem; border-radius: 6px;">Lưu mã giảm giá</button>
+                        </div>
+                    </form>
+                </div>
             </div>
 
         <?php else: // products ?>
@@ -436,22 +1202,43 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
                 </div>
             </div>
 
-            <script>
-                function openModal(id) {
-                    document.getElementById(id).style.display = 'flex';
-                }
-                function closeModal(id) {
-                    document.getElementById(id).style.display = 'none';
-                }
-                function confirmDelete(id) {
-                    if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này? Hành động này không thể hoàn tác.')) {
-                        // Thêm logic xóa ở đây
-                        alert('Đã xóa sản phẩm ID: ' + id);
-                    }
-                }
-            </script>
         <?php endif; ?>
     </main>
 </div>
+
+<!-- Modal Xác Nhận Xóa -->
+<div id="deleteConfirmModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: #fff; width: 100%; max-width: 400px; border-radius: 12px; padding: 2rem; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); text-align: center;">
+        <div style="width: 60px; height: 60px; background: #FFEBEE; color: #D32F2F; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: bold; margin: 0 auto 1.5rem;">
+            !
+        </div>
+        <h3 style="margin-bottom: 1rem; font-family: var(--font-heading); font-size: 1.5rem;">Xác nhận xóa</h3>
+        <p style="color: #666; font-family: var(--font-ui); margin-bottom: 2rem;">Bạn có chắc chắn muốn xóa mục này? Hành động này không thể hoàn tác.</p>
+        
+        <form id="deleteForm" action="" method="POST">
+            <input type="hidden" name="action" id="deleteActionName" value="">
+            <input type="hidden" name="delete_id" id="deleteIdInput" value="">
+            
+            <div style="display: flex; gap: 1rem;">
+                <button type="button" onclick="closeModal('deleteConfirmModal')" style="flex: 1; padding: 0.8rem; background: #f5f5f5; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; color: #333; font-family: var(--font-ui);">Hủy</button>
+                <button type="submit" style="flex: 1; padding: 0.8rem; background: #F44336; color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-family: var(--font-ui); transition: 0.3s;">Xóa ngay</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openModal(id) {
+        document.getElementById(id).style.display = 'flex';
+    }
+    function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
+    }
+    function confirmDelete(id, actionName = 'delete_item') {
+        document.getElementById('deleteIdInput').value = id;
+        document.getElementById('deleteActionName').value = actionName;
+        openModal('deleteConfirmModal');
+    }
+</script>
 
 <?php include __DIR__ . '/partials/footer.php'; ?>

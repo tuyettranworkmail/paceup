@@ -34,20 +34,21 @@ if (session_status() === PHP_SESSION_NONE) session_start();
             </a>
             <?php if (isset($_SESSION['user_id'])): ?>
                 <div class="user-dropdown">
-                    <a href="#" class="icon-btn" title="Tài khoản">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    <a href="#" class="icon-btn" title="Tài khoản" style="padding: 0; overflow: hidden; border-radius: 50%; border: 1px solid #ddd; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; background: #f5f5f5;">
+                        <img src="<?= !empty($_SESSION['user_avatar']) ? BASE_URL . $_SESSION['user_avatar'] : 'https://ui-avatars.com/api/?name='.urlencode($_SESSION['user_name'] ?? 'User').'&background=2A9D8F&color=fff&size=40' ?>" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
                     </a>
                     <div class="dropdown-menu">
                         <span class="dropdown-name"><?= htmlspecialchars($_SESSION['user_name']) ?></span>
                         <?php if ($_SESSION['user_role'] === 'admin'): ?>
                             <a href="<?= BASE_URL ?>admin">Admin Panel</a>
                         <?php endif; ?>
+                        <a href="<?= BASE_URL ?>account">Tài khoản</a>
                         <a href="<?= BASE_URL ?>logout">Đăng xuất</a>
                     </div>
                 </div>
             <?php else: ?>
-                <a href="<?= BASE_URL ?>login" class="icon-btn" title="Đăng nhập">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                <a href="<?= BASE_URL ?>login" style="display: inline-flex; align-items: center; background: #111; color: #fff; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-weight: 600; font-family: var(--font-ui); font-size: 0.9rem;">
+                    Đăng nhập
                 </a>
             <?php endif; ?>
         </div>

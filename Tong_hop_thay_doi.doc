@@ -1,0 +1,67 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<title>Tổng hợp các thay đổi dự án PaceUp</title>
+<style>
+    body { font-family: "Times New Roman", Times, serif; font-size: 14pt; line-height: 1.5; }
+    h1 { color: #2A9D8F; text-align: center; }
+    h2 { color: #E76F51; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+    ul { margin-top: 5px; }
+    li { margin-bottom: 10px; }
+</style>
+</head>
+<body>
+    <h1>BÁO CÁO TỔNG HỢP CÁC THAY ĐỔI DỰ ÁN PACEUP</h1>
+    <p><strong>Ngày thực hiện:</strong> 30/06/2026</p>
+    <hr>
+    
+    <h2>1. Cải tiến Giao diện & Chức năng Header</h2>
+    <ul>
+        <li><strong>Xóa bỏ:</strong> Đã gỡ bỏ các liên kết "Logout" và "Contact Us" không cần thiết trên thanh Header.</li>
+        <li><strong>Điều hướng thông minh:</strong> Thêm tính năng truy cập nhanh vào trang <em>Account</em> (Tài khoản) ngay bên dưới tên người dùng. Đối với tài khoản có quyền Admin, tự động hiển thị thêm liên kết vào <em>Admin Panel</em>.</li>
+        <li><strong>Trạng thái chưa đăng nhập:</strong> Giao diện hiển thị nút "Đăng nhập" thay thế nếu khách hàng chưa đăng nhập.</li>
+    </ul>
+
+    <h2>2. Xử lý Đăng nhập & Đăng xuất (Auth)</h2>
+    <ul>
+        <li><strong>Chuyển hướng tự động (Redirect):</strong> Sửa đổi luồng logic trong <code>index.php</code> và <code>login.php</code>. Khi đăng nhập thành công, hệ thống tự nhận diện Role: Admin sẽ chuyển hướng thẳng vào bảng điều khiển Admin, còn User thường sẽ trở về trang chủ mua sắm.</li>
+        <li><strong>Nút hiển thị mật khẩu:</strong> Tích hợp nút hình "Con mắt" trong form đăng nhập, cho phép người dùng ẩn/hiện mật khẩu để dễ dàng nhập liệu.</li>
+        <li><strong>Đăng xuất:</strong> Chỉnh sửa nút đăng xuất xóa sạch session và đưa người dùng quay trở lại trang chủ với trạng thái chưa đăng nhập.</li>
+    </ul>
+
+    <h2>3. Tính năng Tài khoản Người dùng (Account)</h2>
+    <ul>
+        <li><strong>Cập nhật Avatar:</strong> Thêm tính năng Upload & Thay đổi ảnh đại diện (Avatar) ngay trong trang Account.</li>
+        <li><strong>Đồng bộ Avatar:</strong> Hình ảnh đại diện mới tải lên sẽ tự động đồng bộ và hiển thị thu nhỏ ngay trên thanh Header thay cho icon mặc định.</li>
+    </ul>
+
+    <h2>4. Nâng cấp Giao diện chung (UI/UX)</h2>
+    <ul>
+        <li><strong>Cập nhật Font chữ:</strong> Thay đổi toàn bộ font chữ tiêu đề (từ Anton) sang font <strong>Poppins</strong> nhằm mang lại phong cách thiết kế hiện đại, thanh thoát và dễ đọc hơn.</li>
+        <li><strong>Hiệu ứng Admin Panel:</strong> Viết thêm mã CSS cho các nút bấm trong khu vực Admin. Các nút hiện tại có hiệu ứng nổi lên, đổ bóng khi di chuột (Hover) và lún xuống khi nhấn (Active), tăng trải nghiệm tương tác (Micro-interactions).</li>
+    </ul>
+
+    <h2>5. Quản lý Người dùng (Admin Panel - Users)</h2>
+    <ul>
+        <li><strong>Tích hợp dữ liệu thật:</strong> Xóa bỏ dữ liệu mẫu tĩnh (HTML static), kết nối bảng danh sách người dùng với cơ sở dữ liệu để hiển thị trực tiếp khách hàng thật.</li>
+        <li><strong>Trang Chi tiết Khách hàng:</strong> Thay thế nút "Sửa" bằng nút "Chi tiết". Khi nhấn vào, chuyển sang giao diện chuyên sâu hiển thị: Profile cá nhân, Số lượng đơn hàng, Tổng tiền đã tiêu, Địa chỉ nhận hàng, Lịch sử mua hàng và Ghi chú hệ thống.</li>
+        <li><strong>Popup Xác nhận Xóa an toàn:</strong> Thay thế hộp thoại cảnh báo xóa của trình duyệt (browser alert) bằng một Modal HTML/CSS giao diện đẹp mắt. Gắn logic PHP xử lý việc xóa tài khoản khách hàng khỏi Database một cách an toàn.</li>
+    </ul>
+
+    <h2>6. Quản lý Đơn hàng (Admin Panel - Orders)</h2>
+    <ul>
+        <li><strong>Bảng dữ liệu thực:</strong> Tương tự phần người dùng, bảng đơn hàng đã được kết nối với Database (PDO) để hiển thị lịch sử đặt hàng của khách.</li>
+        <li><strong>Trang Chi tiết Đơn hàng:</strong> Xây dựng trang Order Details sang trọng (gồm 2 cột). Hiển thị chi tiết từng sản phẩm khách mua, phí vận chuyển, giảm giá, tổng tiền, thông tin thanh toán, và thông tin giao hàng.</li>
+        <li><strong>Cập nhật trạng thái:</strong> Tích hợp tính năng cho phép Admin thay đổi trạng thái đơn hàng (Mới, Đang xử lý, Đang giao, Đã giao, Hủy) bằng menu thả xuống, màu sắc badge tự động cập nhật theo trạng thái.</li>
+        <li><strong>Khối Thống kê (Dashboard Stats):</strong> Bổ sung dải 4 khối thống kê phía trên bảng danh sách đơn hàng bao gồm: <em>Tổng số đơn (Total Orders), Tổng doanh thu (Revenue), Đơn chờ xử lý (Pending), và Tổng số khách hàng (Customers)</em>. Các thông số này được tính toán động từ Database.</li>
+    </ul>
+
+    <h2>7. Cập nhật Cơ sở dữ liệu (Database)</h2>
+    <ul>
+        <li>Cập nhật các danh mục (Categories) mới vào cơ sở dữ liệu.</li>
+        <li>Sửa lỗi (Fix bug): Xử lý dứt điểm lỗi cú pháp <code>Parse error: Unmatched '}'</code> phát sinh trong file <code>admin.php</code>.</li>
+    </ul>
+</body>
+</html>
