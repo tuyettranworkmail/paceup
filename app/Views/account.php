@@ -3,10 +3,10 @@ $tab = $_GET['tab'] ?? 'account';
 include __DIR__ . '/partials/header.php';
 ?>
 
-<div style="max-width: 1200px; margin: 4rem auto; padding: 0 1.5rem;">
-    <h1 style="text-align: center; font-family: var(--font-heading); font-size: 3rem; margin-bottom: 4rem;">My Account</h1>
+<div class="acc-responsive-wrapper" style="max-width: 1200px; margin: 4rem auto; padding: 0 1.5rem;">
+    <h1 class="acc-responsive-title" style="text-align: center; font-family: var(--font-heading); font-size: 3rem; margin-bottom: 4rem;">My Account</h1>
     
-    <div style="display: grid; grid-template-columns: 280px 1fr; gap: 3rem; align-items: start;">
+    <div class="acc-responsive-layout" style="display: grid; grid-template-columns: 280px 1fr; gap: 3rem; align-items: start;">
         <!-- Sidebar -->
         <div style="background: #f5f5f5; border-radius: 12px; padding: 2rem 1.5rem;">
             <div style="text-align: center; margin-bottom: 2rem;">
@@ -79,7 +79,7 @@ include __DIR__ . '/partials/header.php';
             <?php elseif ($tab === 'address'): ?>
                 <h2 style="font-family: var(--font-heading); font-size: 1.5rem; margin-bottom: 2rem;">Address</h2>
                 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div class="acc-responsive-address" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                     <!-- Billing Address -->
                     <div style="border: 1px solid #ddd; border-radius: 8px; padding: 2rem;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
