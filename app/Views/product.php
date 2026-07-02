@@ -24,6 +24,12 @@ function productDetailAssetPath($image): string {
 .pd-size-btn { padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 1rem; transition: all 0.2s; }
 .pd-size-btn:hover { border-color: #111; }
 .pd-size-btn.active { border-color: #111; box-shadow: inset 0 0 0 1px #111; }
+.pd-color-header { display: flex; justify-content: space-between; margin-bottom: 1rem; font-size: 0.95rem; font-weight: 500; }
+.pd-color-grid { display: flex; gap: 0.8rem; margin-bottom: 2rem; flex-wrap: wrap; }
+.pd-color-btn { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.95rem; transition: all 0.2s; }
+.pd-color-btn:hover { border-color: #111; }
+.pd-color-btn.active { border-color: #111; box-shadow: inset 0 0 0 1px #111; }
+.color-swatch { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #ddd; display: inline-block; }
 .pd-actions { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 3rem; }
 .btn-add-bag { padding: 1.2rem; background: #111; color: #fff; border: none; border-radius: 100px; font-size: 1rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
 .btn-add-bag:hover { background: #333; }
@@ -55,6 +61,24 @@ function productDetailAssetPath($image): string {
             <h1 class="pd-title"><?= htmlspecialchars($product['name']) ?></h1>
             <div class="pd-category"><?= htmlspecialchars($product['type']) ?></div>
             <div class="pd-price"><?= number_format($product['price'], 0, ',', '.') ?> ₫</div>
+
+            <div class="pd-color-header">
+                <span>Chọn Màu</span>
+            </div>
+            <div class="pd-color-grid">
+                <button class="pd-color-btn">
+                    <span class="color-swatch" style="background-color: #dc2626;"></span>
+                    Đỏ
+                </button>
+                <button class="pd-color-btn">
+                    <span class="color-swatch" style="background-color: #ffffff;"></span>
+                    Trắng
+                </button>
+                <button class="pd-color-btn">
+                    <span class="color-swatch" style="background-color: #111111;"></span>
+                    Đen
+                </button>
+            </div>
 
             <div class="pd-size-header">
                 <span>Chọn Size</span>
@@ -111,6 +135,14 @@ function productDetailAssetPath($image): string {
 document.querySelectorAll('.pd-size-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         document.querySelectorAll('.pd-size-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+    });
+});
+
+// Color selection
+document.querySelectorAll('.pd-color-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.pd-color-btn').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
     });
 });
