@@ -3,8 +3,8 @@
             <div>
                 <h3>Sản phẩm</h3>
                 <ul>
-                    <li><a href="#">Giày Nam</a></li>
-                    <li><a href="#">Giày Nữ</a></li>
+                    <li><a href="<?= htmlspecialchars(BASE_URL . 'shop?gender=men') ?>">Giày Nam</a></li>
+                    <li><a href="<?= htmlspecialchars(BASE_URL . 'shop?gender=women') ?>">Giày Nữ</a></li>
                     <li><a href="#">Thời trang & Phụ kiện</a></li>
                     <li><a href="#">Sale-off</a></li>
                 </ul>

@@ -120,9 +120,29 @@ class Order extends BaseModel {
         return ['success' => true, 'message' => 'Hủy đơn hàng thành công.'];
     }
 
-    public function getOrdersByUserId($userId) {
-        $stmt = $this->db->prepare("SELECT * FROM orders WHERE user_id = :user_id ORDER BY created_at DESC");
-        $stmt->execute(['user_id' => $userId]);
+    public function getOrdersByUserId($userId, $status = 'all') {
+        $statusMap = [
+            'pending' => 'pending',
+            'confirmed' => 'confirmed',
+            'shipping' => 'shipping',
+            'delivered' => 'delivered',
+            'cancelled' => 'canceled',
+            'canceled' => 'canceled'
+        ];
+        $normalizedStatus = strtolower((string) $status);
+
+        $sql = "SELECT * FROM orders WHERE user_id = :user_id";
+        $params = ['user_id' => $userId];
+
+        if ($normalizedStatus !== 'all' && isset($statusMap[$normalizedStatus])) {
+            $sql .= " AND status = :status";
+            $params['status'] = $statusMap[$normalizedStatus];
+        }
+
+        $sql .= " ORDER BY created_at DESC";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 

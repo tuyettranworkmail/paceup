@@ -46,10 +46,10 @@ $avatar = $user['avatar'] ?? '';
                 <input type="text" name="full_name" placeholder="Họ và tên" required value="<?= htmlspecialchars($user['full_name'] ?? '') ?>">
             </div>
             <div class="form-group">
-                <input type="text" name="phone" placeholder="Số điện thoại" value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
+                <input type="email" name="email" placeholder="Email" readonly value="<?= htmlspecialchars($user['email'] ?? '') ?>">
             </div>
             <div class="form-group">
-                <input type="email" name="email" placeholder="Email" readonly value="<?= htmlspecialchars($user['email'] ?? '') ?>">
+                <input type="tel" name="phone" placeholder="Số điện thoại" maxlength="20" value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
             </div>
             <button type="submit" class="btn-login">Lưu thông tin</button>
         </form>

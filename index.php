@@ -28,6 +28,7 @@ $router->add('/product', 'ProductController', 'show');
 $router->add('/cart', 'CartController', 'index');
 $router->add('/wishlist', 'WishlistController', 'index');
 $router->add('/checkout', 'CheckoutController', 'index');
+$router->add('/checkout/place-order', 'CheckoutController', 'placeOrder');
 $router->add('/checkout-success', 'CheckoutController', 'success');
 $router->add('/login', 'AuthController', 'login');
 $router->add('/register', 'AuthController', 'register');

@@ -25,7 +25,7 @@ class AuthController {
             $user = $userModel->findByEmail($email);
 
             if (!$user) {
-                SessionHelper::setFlash('error', 'Email không tồn tại');
+                SessionHelper::setFlash('error', 'Email hoặc mật khẩu không đúng');
                 SessionHelper::redirect('/login');
             }
 
@@ -35,13 +35,13 @@ class AuthController {
             }
 
             if (!password_verify($password, $user['password'])) {
-                SessionHelper::setFlash('error', 'Mật khẩu không đúng');
+                SessionHelper::setFlash('error', 'Email hoặc mật khẩu không đúng');
                 SessionHelper::redirect('/login');
             }
 
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user_role'] = $user['role'];
-            $_SESSION['user_name'] = $user['full_name'];
+            $_SESSION['user_name'] = !empty($user['display_name']) ? $user['display_name'] : $user['full_name'];
 
             LoggingService::write($user['id'], 'login', 'Đăng nhập thành công');
 
@@ -66,6 +66,11 @@ class AuthController {
             $password = trim($_POST['password'] ?? '');
             $confirmPassword = trim($_POST['confirm_password'] ?? '');
             $phone = trim($_POST['phone'] ?? '');
+            $_SESSION['register_old'] = [
+                'full_name' => $fullName,
+                'email' => $email,
+                'phone' => $phone
+            ];
 
             if ($fullName === '' || $email === '' || $password === '' || $confirmPassword === '') {
                 SessionHelper::setFlash('error', 'Vui lòng nhập đầy đủ thông tin');
@@ -74,6 +79,11 @@ class AuthController {
 
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 SessionHelper::setFlash('error', 'Email không hợp lệ');
+                SessionHelper::redirect('/register');
+            }
+
+            if ($phone !== '' && !preg_match('/^[0-9+\-\s()]{7,20}$/', $phone)) {
+                SessionHelper::setFlash('error', 'Số điện thoại không hợp lệ');
                 SessionHelper::redirect('/register');
             }
 
@@ -101,9 +111,9 @@ class AuthController {
                 'phone' => $phone
             ]);
 
+            unset($_SESSION['register_old']);
             LoggingService::write($newId, 'register', 'Đăng ký tài khoản mới');
-            SessionHelper::setFlash('success', 'Đăng ký thành công, vui lòng đăng nhập');
-            SessionHelper::redirect('/login');
+            SessionHelper::redirect('/login?registered=1');
         }
 
         require __DIR__ . '/../Views/register.php';

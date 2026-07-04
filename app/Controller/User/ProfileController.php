@@ -33,6 +33,11 @@ class ProfileController {
             SessionHelper::redirect('/account');
         }
 
+        if ($phone !== '' && !preg_match('/^[0-9+\-\s()]{7,20}$/', $phone)) {
+            SessionHelper::setFlash('error', 'Số điện thoại không hợp lệ');
+            SessionHelper::redirect('/account');
+        }
+
         $userModel = new UserModel();
         $userModel->updateProfile($_SESSION['user_id'], [
             'full_name' => $fullName,

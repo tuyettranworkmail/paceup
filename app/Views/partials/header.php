@@ -18,14 +18,16 @@ if (session_status() === PHP_SESSION_NONE) session_start();
             <a href="<?= BASE_URL ?>">PACEUP</a>
         </div>
         <nav class="nav-links">
-            <a href="<?= BASE_URL ?>shop?gender=men">Nam</a>
-            <a href="<?= BASE_URL ?>shop?gender=women">Nữ</a>
+            <a href="<?= htmlspecialchars(BASE_URL . 'shop?gender=men') ?>">Nam</a>
+            <a href="<?= htmlspecialchars(BASE_URL . 'shop?gender=women') ?>">Nữ</a>
         </nav>
         <div class="nav-actions">
-            <div class="search-bar">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                <input type="text" placeholder="Tìm kiếm">
-            </div>
+            <form class="search-bar" action="<?= BASE_URL ?>shop" method="GET">
+                <button type="submit" aria-label="Search" style="border: 0; background: transparent; padding: 0; display: flex; align-items: center; color: inherit; cursor: pointer;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </button>
+                <input type="text" name="q" placeholder="Tìm kiếm" value="<?= htmlspecialchars($_GET['q'] ?? '') ?>">
+            </form>
             <a href="<?= BASE_URL ?>wishlist" class="icon-btn" title="Yêu thích">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
             </a>
