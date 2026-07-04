@@ -1,5 +1,13 @@
 <?php include __DIR__ . '/partials/header.php'; ?>
 
+<?php
+function productDetailAssetPath($image): string {
+    $image = (string)$image;
+    if ($image === '') return '';
+    return str_starts_with($image, 'uploads/') ? $image : 'assets/images/' . $image;
+}
+?>
+
 // Controller provides $product and $related
 
 <style>
@@ -16,6 +24,12 @@
 .pd-size-btn { padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 1rem; transition: all 0.2s; }
 .pd-size-btn:hover { border-color: #111; }
 .pd-size-btn.active { border-color: #111; box-shadow: inset 0 0 0 1px #111; }
+.pd-color-header { display: flex; justify-content: space-between; margin-bottom: 1rem; font-size: 0.95rem; font-weight: 500; }
+.pd-color-grid { display: flex; gap: 0.8rem; margin-bottom: 2rem; flex-wrap: wrap; }
+.pd-color-btn { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.95rem; transition: all 0.2s; }
+.pd-color-btn:hover { border-color: #111; }
+.pd-color-btn.active { border-color: #111; box-shadow: inset 0 0 0 1px #111; }
+.color-swatch { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #ddd; display: inline-block; }
 .pd-actions { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 3rem; }
 .btn-add-bag { padding: 1.2rem; background: #111; color: #fff; border: none; border-radius: 100px; font-size: 1rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
 .btn-add-bag:hover { background: #333; }
@@ -40,13 +54,31 @@
 <div class="product-detail-page">
     <div class="pd-layout">
         <div class="pd-main-img">
-            <img src="<?= BASE_URL ?>assets/images/<?= htmlspecialchars($product['image']) ?>" alt="<?= htmlspecialchars($product['name']) ?>">
+            <img src="<?= BASE_URL . htmlspecialchars(productDetailAssetPath($product['image'])) ?>" alt="<?= htmlspecialchars($product['name']) ?>">
         </div>
 
         <div class="pd-info">
             <h1 class="pd-title"><?= htmlspecialchars($product['name']) ?></h1>
             <div class="pd-category"><?= htmlspecialchars($product['type']) ?></div>
             <div class="pd-price"><?= number_format($product['price'], 0, ',', '.') ?> ₫</div>
+
+            <div class="pd-color-header">
+                <span>Chọn Màu</span>
+            </div>
+            <div class="pd-color-grid">
+                <button class="pd-color-btn">
+                    <span class="color-swatch" style="background-color: #dc2626;"></span>
+                    Đỏ
+                </button>
+                <button class="pd-color-btn">
+                    <span class="color-swatch" style="background-color: #ffffff;"></span>
+                    Trắng
+                </button>
+                <button class="pd-color-btn">
+                    <span class="color-swatch" style="background-color: #111111;"></span>
+                    Đen
+                </button>
+            </div>
 
             <div class="pd-size-header">
                 <span>Chọn Size</span>
@@ -59,8 +91,8 @@
             </div>
 
             <div class="pd-actions">
-                <button class="btn-add-bag" onclick="addToCart('<?= htmlspecialchars(addslashes($product['name'])) ?>', <?= $product['price'] ?>, 'assets/images/<?= htmlspecialchars($product['image']) ?>')">Thêm vào giỏ</button>
-                <button class="btn-favourite" data-name="<?= htmlspecialchars($product['name']) ?>" onclick="toggleFavourite(this, '<?= htmlspecialchars(addslashes($product['name'])) ?>', <?= $product['price'] ?>, 'assets/images/<?= htmlspecialchars($product['image']) ?>')">
+                <button class="btn-add-bag" onclick="addToCart('<?= htmlspecialchars(addslashes($product['name'])) ?>', <?= $product['price'] ?>, '<?= htmlspecialchars(productDetailAssetPath($product['image'])) ?>')">Thêm vào giỏ</button>
+                <button class="btn-favourite" data-name="<?= htmlspecialchars($product['name']) ?>" onclick="toggleFavourite(this, '<?= htmlspecialchars(addslashes($product['name'])) ?>', <?= $product['price'] ?>, '<?= htmlspecialchars(productDetailAssetPath($product['image'])) ?>')">
                     Yêu thích
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
                 </button>
@@ -83,7 +115,7 @@
         <div class="related-grid">
             <?php foreach ($related as $r): ?>
             <a href="<?= BASE_URL ?>product?id=<?= $r['id'] ?>" class="related-card">
-                <div class="related-img"><img src="<?= BASE_URL ?>assets/images/<?= htmlspecialchars($r['image']) ?>" alt="<?= htmlspecialchars($r['name']) ?>"></div>
+                <div class="related-img"><img src="<?= BASE_URL . htmlspecialchars(productDetailAssetPath($r['image'])) ?>" alt="<?= htmlspecialchars($r['name']) ?>"></div>
                 <div class="related-info">
                     <span class="r-title"><?= htmlspecialchars($r['name']) ?></span>
                     <span class="r-cat"><?= htmlspecialchars($r['type']) ?></span>
@@ -103,6 +135,14 @@
 document.querySelectorAll('.pd-size-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         document.querySelectorAll('.pd-size-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+    });
+});
+
+// Color selection
+document.querySelectorAll('.pd-color-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.pd-color-btn').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
     });
 });

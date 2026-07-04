@@ -19,4 +19,20 @@ foreach ($users as $u) {
     $stmt->execute([$u['full_name'], $u['email'], $hash, $u['role']]);
     echo "Created {$u['email']} ({$u['role']})<br>";
 }
+
+echo "<h3>Seeding Categories...</h3>";
+$categories = ['Running', 'Skateboarding', 'Lifestyle', 'Football', 'Basketball', 'Tennis', 'Training', 'Slide', 'Golf'];
+foreach ($categories as $cat) {
+    $slug = strtolower($cat);
+    $stmt = $pdo->prepare("SELECT id FROM categories WHERE name = ?");
+    $stmt->execute([$cat]);
+    if ($stmt->fetch()) {
+        echo "Category {$cat} already exists.<br>";
+        continue;
+    }
+    $stmt = $pdo->prepare("INSERT INTO categories (name, slug, status) VALUES (?, ?, 1)");
+    $stmt->execute([$cat, $slug]);
+    echo "Created Category {$cat}<br>";
+}
+
 echo "Done.";

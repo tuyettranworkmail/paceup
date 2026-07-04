@@ -43,6 +43,26 @@ $router->add('/account/addresses/add', 'User/ProfileController', 'addAddress');
 $router->add('/account/addresses/default', 'User/ProfileController', 'setDefaultAddress');
 $router->add('/account/addresses/delete', 'User/ProfileController', 'deleteAddress');
 $router->add('/admin', 'AdminController', 'index');
+$router->add('/admin/products', 'Admin\ProductController', 'index');
+$router->add('/admin/products/create', 'Admin\ProductController', 'create');
+$router->add('/admin/products/edit', 'Admin\ProductController', 'edit');
+$router->add('/admin/products/delete', 'Admin\ProductController', 'delete');
+$router->add('/admin/products/variants/add', 'Admin\ProductController', 'addVariant');
+$router->add('/admin/products/variants/update', 'Admin\ProductController', 'updateVariant');
+$router->add('/admin/products/variants/delete', 'Admin\ProductController', 'deleteVariant');
+$router->add('/admin/products/images/primary', 'Admin\ProductController', 'setPrimaryImage');
+$router->add('/admin/products/images/delete', 'Admin\ProductController', 'deleteImage');
+$router->add('/admin/categories', 'Admin\CategoryController', 'index');
+$router->add('/admin/categories/create', 'Admin\CategoryController', 'create');
+$router->add('/admin/categories/edit', 'Admin\CategoryController', 'edit');
+$router->add('/admin/categories/delete', 'Admin\CategoryController', 'delete');
+$router->add('/admin/inventory', 'Admin\InventoryController', 'index');
+$router->add('/admin/inventory/update', 'Admin\InventoryController', 'update');
+$router->add('/admin/reviews', 'Admin\ReviewController', 'index');
+$router->add('/admin/reviews/approve', 'Admin\ReviewController', 'approve');
+$router->add('/admin/reviews/hide', 'Admin\ReviewController', 'hide');
+$router->add('/admin/reviews/delete', 'Admin\ReviewController', 'delete');
+$router->add('/account', 'AccountController', 'index');
 $router->add('/apply-coupon', 'CheckoutController', 'applyCoupon');
 
 // Parse URL
@@ -52,5 +72,15 @@ if (strpos($url, $basePath) === 0) {
     $url = substr($url, strlen($basePath));
 }
 $url = '/' . ltrim($url, '/');
+
+// Redirect logged in users away from auth pages
+if (isset($_SESSION['user_id']) && ($url === '/login' || $url === '/register')) {
+    if ($_SESSION['user_role'] === 'admin') {
+        header('Location: ' . BASE_URL . 'admin');
+    } else {
+        header('Location: ' . BASE_URL);
+    }
+    exit;
+}
 
 $router->dispatch($url);
