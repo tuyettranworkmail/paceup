@@ -31,27 +31,15 @@ class CategoryController {
         $this->redirect('admin/categories');
     }
 
-    public function edit() {
-        $id = (int)($_POST['id'] ?? 0);
-        $name = trim($_POST['name'] ?? '');
-
-        if ($id > 0 && $name !== '') {
-            $this->productModel->updateCategory($id, [
-                'name' => $name,
-                'slug' => $this->slugify($_POST['slug'] ?? $name),
-                'status' => (int)($_POST['status'] ?? 1)
-            ]);
-            $this->setFlash('success', 'Category updated.');
-        }
-
-        $this->redirect('admin/categories');
-    }
-
     public function delete() {
         $id = (int)($_POST['id'] ?? 0);
         if ($id > 0) {
-            $this->productModel->deleteCategory($id);
-            $this->setFlash('success', 'Category hidden.');
+            $category = $this->productModel->getCategory($id);
+            if ($category) {
+                $newStatus = (int)$category['status'] === 1 ? 0 : 1;
+                $this->productModel->updateCategory($id, ['status' => $newStatus]);
+                $this->setFlash('success', $newStatus === 1 ? 'Category shown.' : 'Category hidden.');
+            }
         }
         $this->redirect('admin/categories');
     }

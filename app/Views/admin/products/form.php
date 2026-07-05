@@ -1,7 +1,8 @@
 <?php
 require_once __DIR__ . '/../_helpers.php';
 $isEdit = !empty($product);
-adminStart($isEdit ? 'Edit Product' : 'Add Product', 'products', $flash ?? null);
+$variantSizes = ['EU 36', 'EU 37', 'EU 38', 'EU 39', 'EU 40', 'EU 41', 'EU 42', 'EU 43', 'EU 44', 'EU 45'];
+adminStart($isEdit ? 'Sửa sản phẩm' : 'Thêm sản phẩm', 'products', $flash ?? null);
 ?>
 
 <form class="admin-panel" method="post" enctype="multipart/form-data" action="<?= $isEdit ? BASE_URL . 'admin/products/edit?id=' . (int)$product['id'] : BASE_URL . 'admin/products/create' ?>">
@@ -54,7 +55,8 @@ adminStart($isEdit ? 'Edit Product' : 'Add Product', 'products', $flash ?? null)
         </div>
         <div class="admin-field">
             <label>Upload image</label>
-            <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/avif">
+            <input type="file" name="image" accept=".jpg,.jpeg,.png,.webp,.avif,image/jpeg,image/png,image/webp,image/avif">
+            <small style="display:block; margin-top:.35rem; color:#666;">Accepted: JPG, PNG, WEBP, AVIF. Max 2MB.</small>
         </div>
     </div>
 
@@ -118,9 +120,35 @@ adminStart($isEdit ? 'Edit Product' : 'Add Product', 'products', $flash ?? null)
             <tbody>
                 <?php foreach ($variants as $variant): ?>
                     <?php $variantFormId = 'variant-edit-' . (int)$variant['id']; ?>
+                    <?php
+                    $selectedSize = $variant['size'];
+                    if (preg_match('/^\d{2}$/', $selectedSize)) {
+                        $selectedSize = 'EU ' . $selectedSize;
+                    }
+                    if (!in_array($selectedSize, $variantSizes, true)) {
+                        $selectedSize = 'EU 42';
+                    }
+                    $selectedColor = $variant['color'];
+                    $legacyColors = ['Đỏ' => 'Red', 'Trắng' => 'White', 'Đen' => 'Black', 'đỏ' => 'Red', 'trắng' => 'White', 'đen' => 'Black', 'red' => 'Red', 'white' => 'White', 'black' => 'Black'];
+                    if (isset($legacyColors[$selectedColor])) {
+                        $selectedColor = $legacyColors[$selectedColor];
+                    }
+                    ?>
                     <tr>
-                        <td><input form="<?= $variantFormId ?>" type="text" name="size" value="<?= adminE($variant['size']) ?>"></td>
-                        <td><input form="<?= $variantFormId ?>" type="text" name="color" value="<?= adminE($variant['color']) ?>"></td>
+                        <td>
+                            <select form="<?= $variantFormId ?>" name="size">
+                                <?php foreach ($variantSizes as $size): ?>
+                                    <option value="<?= adminE($size) ?>" <?= $selectedSize === $size ? 'selected' : '' ?>><?= adminE($size) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                            <td>
+                                <select form="<?= $variantFormId ?>" name="color">
+                                    <?php foreach (['Black', 'Red', 'White'] as $color): ?>
+                                        <option value="<?= adminE($color) ?>" <?= $selectedColor === $color ? 'selected' : '' ?>><?= adminE($color) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </td>
                         <td><input form="<?= $variantFormId ?>" type="number" name="stock_quantity" value="<?= (int)$variant['stock_quantity'] ?>"></td>
                         <td><input form="<?= $variantFormId ?>" type="number" name="price_modifier" step="1000" value="<?= adminE($variant['price_modifier']) ?>"></td>
                         <td class="admin-actions">
@@ -138,8 +166,20 @@ adminStart($isEdit ? 'Edit Product' : 'Add Product', 'products', $flash ?? null)
                     </tr>
                 <?php endforeach; ?>
                 <tr>
-                    <td><input form="variant-add-form" type="text" name="size" placeholder="EU 42" required></td>
-                    <td><input form="variant-add-form" type="text" name="color" placeholder="Black" required></td>
+                    <td>
+                        <select form="variant-add-form" name="size" required>
+                            <?php foreach ($variantSizes as $size): ?>
+                                <option value="<?= adminE($size) ?>" <?= $size === 'EU 42' ? 'selected' : '' ?>><?= adminE($size) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                    <td>
+                        <select form="variant-add-form" name="color" required>
+                            <option value="Black" selected>Black</option>
+                            <option value="Red">Red</option>
+                            <option value="White">White</option>
+                        </select>
+                    </td>
                     <td><input form="variant-add-form" type="number" name="stock_quantity" value="0"></td>
                     <td><input form="variant-add-form" type="number" name="price_modifier" step="1000" value="0"></td>
                     <td><button class="admin-btn" form="variant-add-form" type="submit">Add variant</button></td>
@@ -150,3 +190,4 @@ adminStart($isEdit ? 'Edit Product' : 'Add Product', 'products', $flash ?? null)
 <?php endif; ?>
 
 <?php adminEnd(); ?>
+

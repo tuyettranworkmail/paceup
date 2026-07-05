@@ -427,6 +427,49 @@ ul {
 .admin-container {
     display: flex;
     min-height: calc(100vh - 80px);
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.admin-container *,
+.admin-container *::before,
+.admin-container *::after {
+    font-family: "Segoe UI", Arial, sans-serif !important;
+    letter-spacing: 0 !important;
+}
+
+.admin-container h1,
+.admin-container h2,
+.admin-container h3,
+.admin-container h4,
+.admin-container h5,
+.admin-container h6,
+.admin-container button,
+.admin-container .btn,
+.admin-container a,
+.admin-container th,
+.admin-container [style*="font-heading"] {
+    font-family: "Segoe UI", Arial, sans-serif !important;
+    letter-spacing: 0 !important;
+    line-height: 1.25 !important;
+}
+
+.admin-container h1,
+.admin-container h2,
+.admin-container h3,
+.admin-header h2,
+.admin-container [style*="text-transform: uppercase"] {
+    text-transform: none !important;
+    font-weight: 800 !important;
+}
+
+.admin-container button,
+.admin-container .btn {
+    text-transform: none !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .admin-sidebar {
@@ -443,8 +486,8 @@ ul {
 .admin-sidebar a {
     display: block;
     padding: 1rem 2rem;
-    font-weight: bold;
-    text-transform: uppercase;
+    font-weight: 700;
+    text-transform: none;
     font-size: 0.9rem;
     color: #aaa;
     border-left: 4px solid transparent;
@@ -475,8 +518,7 @@ ul {
 }
 
 .admin-header h2 {
-    text-transform: uppercase;
-    font-weight: 900;
+    font-weight: 800;
 }
 
 .table-wrapper {

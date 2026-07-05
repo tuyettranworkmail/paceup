@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../_helpers.php';
-adminStart('Categories', 'categories', $flash ?? null);
+adminStart('Danh mục', 'categories', $flash ?? null);
 ?>
 
 <form class="admin-panel admin-grid" method="post" action="<?= BASE_URL ?>admin/categories/create">
@@ -31,30 +31,27 @@ adminStart('Categories', 'categories', $flash ?? null);
             <th>Name</th>
             <th>Slug</th>
             <th>Status</th>
-            <th>Actions</th>
+            <th>Action</th>
         </tr>
     </thead>
     <tbody>
         <?php foreach ($categories as $category): ?>
-            <?php $categoryFormId = 'category-edit-' . (int)$category['id']; ?>
+            <?php $isActive = (int)$category['status'] === 1; ?>
             <tr>
                 <td><?= (int)$category['id'] ?></td>
-                <td><input form="<?= $categoryFormId ?>" type="text" name="name" value="<?= adminE($category['name']) ?>" required></td>
-                <td><input form="<?= $categoryFormId ?>" type="text" name="slug" value="<?= adminE($category['slug']) ?>"></td>
+                <td><strong><?= adminE($category['name']) ?></strong></td>
+                <td><?= adminE($category['slug']) ?></td>
                 <td>
-                    <select form="<?= $categoryFormId ?>" name="status">
-                        <option value="1" <?= (int)$category['status'] === 1 ? 'selected' : '' ?>>Active</option>
-                        <option value="0" <?= (int)$category['status'] === 0 ? 'selected' : '' ?>>Hidden</option>
-                    </select>
+                    <span class="admin-badge <?= $isActive ? 'ok' : 'off' ?>">
+                        <?= $isActive ? 'Active' : 'Hidden' ?>
+                    </span>
                 </td>
                 <td class="admin-actions">
-                    <form id="<?= $categoryFormId ?>" method="post" action="<?= BASE_URL ?>admin/categories/edit">
+                    <form method="post" action="<?= BASE_URL ?>admin/categories/delete">
                         <input type="hidden" name="id" value="<?= (int)$category['id'] ?>">
-                    </form>
-                    <button class="admin-btn light" form="<?= $categoryFormId ?>" type="submit">Save</button>
-                    <form method="post" action="<?= BASE_URL ?>admin/categories/delete" onsubmit="return confirm('Hide this category?')">
-                        <input type="hidden" name="id" value="<?= (int)$category['id'] ?>">
-                        <button class="admin-btn danger" type="submit">Hide</button>
+                        <button class="admin-btn <?= $isActive ? 'danger' : 'ok' ?>" type="submit">
+                            <?= $isActive ? 'Hide' : 'Show' ?>
+                        </button>
                     </form>
                 </td>
             </tr>

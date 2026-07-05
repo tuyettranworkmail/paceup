@@ -154,6 +154,14 @@ function formatPrice(price) {
     return new Intl.NumberFormat('vi-VN').format(price) + ' ₫';
 }
 
+function checkoutImageUrl(image) {
+    if (!image) return '';
+    if (image.startsWith('http')) return image;
+    if (image.startsWith('public/uploads/')) return BASE_URL + image;
+    if (image.startsWith('uploads/')) return BASE_URL + 'public/' + image;
+    return BASE_URL + image;
+}
+
 function renderCheckoutSummary() {
     const itemsContainer = document.getElementById('checkoutItems');
     let total = 0;
@@ -161,7 +169,7 @@ function renderCheckoutSummary() {
     itemsContainer.innerHTML = checkoutCart.map(item => {
         const itemTotal = item.price * item.qty;
         total += itemTotal;
-        const imgUrl = item.image.startsWith('http') ? item.image : BASE_URL + item.image;
+        const imgUrl = checkoutImageUrl(item.image);
         return `
             <div class="summary-item">
                 <img src="${imgUrl}" alt="${item.name}" onerror="this.src='${item.image}'">

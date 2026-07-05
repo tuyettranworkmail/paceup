@@ -26,6 +26,14 @@ class Product extends BaseModel {
         return $this->softDelete('product', $id);
     }
 
+    public function setProductStatus($id, $status) {
+        return $this->updateProduct($id, ['status' => (int)$status]);
+    }
+
+    public function destroyProduct($id) {
+        return $this->delete('product', $id);
+    }
+
     public function getActiveProducts() {
         $stmt = $this->db->prepare("SELECT * FROM product WHERE status = 1 ORDER BY id DESC");
         $stmt->execute();
@@ -34,7 +42,7 @@ class Product extends BaseModel {
 
     public function getAllProducts($filters = []) {
         $sql = "SELECT p.*, c.name AS category_name,
-                (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary = 1 LIMIT 1) AS image
+                (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
                 FROM product p
                 LEFT JOIN categories c ON p.category_id = c.id
                 WHERE 1=1";
@@ -69,7 +77,7 @@ class Product extends BaseModel {
 
     public function getProductsByFilter($filters = []) {
         $sql = "SELECT p.*, p.base_price AS price, c.name AS category,
-                (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary = 1 LIMIT 1) AS image
+                (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
                 FROM product p
                 LEFT JOIN categories c ON p.category_id = c.id
                 WHERE p.status = 1";
@@ -154,7 +162,7 @@ class Product extends BaseModel {
 
     public function getRelatedProducts($productId, $categoryId, $gender, $limit = 4) {
         $sql = "SELECT p.*, p.base_price AS price, c.name AS category,
-                (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary = 1 LIMIT 1) AS image
+                (SELECT image_url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image
                 FROM product p
                 LEFT JOIN categories c ON p.category_id = c.id
                 WHERE p.id != :id AND p.status = 1
@@ -293,10 +301,11 @@ class Product extends BaseModel {
     }
 
     public function getInventoryLogs($limit = 100) {
-        $stmt = $this->db->prepare("SELECT il.*, p.name AS product_name, pv.size, pv.color
+        $stmt = $this->db->prepare("SELECT il.*, p.name AS product_name, pv.size, pv.color, pv.stock_quantity, c.name AS category_name
                                     FROM inventory_logs il
                                     LEFT JOIN product_variants pv ON il.variant_id = pv.id
                                     LEFT JOIN product p ON pv.product_id = p.id
+                                    LEFT JOIN categories c ON p.category_id = c.id
                                     ORDER BY il.id DESC
                                     LIMIT :limit");
         $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);

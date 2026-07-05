@@ -98,10 +98,32 @@ class ProductController {
 
     public function delete() {
         $id = (int)($_POST['id'] ?? 0);
+        $status = (int)($_POST['status'] ?? 0);
         if ($id > 0) {
-            $this->productModel->deleteProduct($id);
-            $this->setFlash('success', 'Product hidden.');
+            $this->productModel->setProductStatus($id, $status);
+            $this->setFlash('success', $status === 1 ? 'Product shown.' : 'Product hidden.');
         }
+        $this->redirect('admin/products');
+    }
+
+    public function destroy() {
+        $id = (int)($_POST['id'] ?? 0);
+
+        if ($id > 0) {
+            try {
+                $images = $this->productModel->getProductImages($id);
+                $this->productModel->destroyProduct($id);
+
+                foreach ($images as $image) {
+                    UploadService::delete($image['image_url']);
+                }
+
+                $this->setFlash('success', 'Product deleted.');
+            } catch (\Exception $e) {
+                $this->setFlash('error', 'Could not delete product: ' . $e->getMessage());
+            }
+        }
+
         $this->redirect('admin/products');
     }
 
@@ -110,8 +132,8 @@ class ProductController {
         if ($productId > 0) {
             $this->productModel->createProductVariant([
                 'product_id' => $productId,
-                'size' => trim($_POST['size'] ?? ''),
-                'color' => trim($_POST['color'] ?? ''),
+                'size' => $this->variantSize($_POST['size'] ?? ''),
+                'color' => $this->variantColor($_POST['color'] ?? ''),
                 'stock_quantity' => (int)($_POST['stock_quantity'] ?? 0),
                 'price_modifier' => (float)($_POST['price_modifier'] ?? 0)
             ]);
@@ -126,8 +148,8 @@ class ProductController {
 
         if ($id > 0) {
             $this->productModel->updateProductVariant($id, [
-                'size' => trim($_POST['size'] ?? ''),
-                'color' => trim($_POST['color'] ?? ''),
+                'size' => $this->variantSize($_POST['size'] ?? ''),
+                'color' => $this->variantColor($_POST['color'] ?? ''),
                 'stock_quantity' => (int)($_POST['stock_quantity'] ?? 0),
                 'price_modifier' => (float)($_POST['price_modifier'] ?? 0)
             ]);
@@ -198,6 +220,21 @@ class ProductController {
         return $slug ?: strtolower(uniqid('product-'));
     }
 
+    private function variantColor($value) {
+        $allowed = ['Black', 'Red', 'White'];
+        return in_array($value, $allowed, true) ? $value : 'Black';
+    }
+
+    private function variantSize($value) {
+        $value = trim((string)$value);
+        if (preg_match('/^\d{2}$/', $value)) {
+            $value = 'EU ' . $value;
+        }
+
+        $allowed = ['EU 36', 'EU 37', 'EU 38', 'EU 39', 'EU 40', 'EU 41', 'EU 42', 'EU 43', 'EU 44', 'EU 45'];
+        return in_array($value, $allowed, true) ? $value : 'EU 42';
+    }
+
     private function requireAdmin() {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
@@ -224,3 +261,4 @@ class ProductController {
         return $flash;
     }
 }
+

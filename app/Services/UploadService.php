@@ -34,13 +34,17 @@ class UploadService {
             throw new Exception('Cannot save uploaded file.');
         }
 
-        return 'uploads/' . trim($folder, '/') . '/' . $fileName;
+        return 'public/uploads/' . trim($folder, '/') . '/' . $fileName;
     }
 
     public static function delete($path) {
         $path = ltrim((string)$path, '/');
         if ($path === '') {
             return;
+        }
+
+        if (strpos($path, 'public/uploads/') === 0) {
+            $path = substr($path, strlen('public/'));
         }
 
         $fullPath = realpath(__DIR__ . '/../../public/' . $path);

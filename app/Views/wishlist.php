@@ -23,6 +23,14 @@ document.addEventListener('DOMContentLoaded', () => {
     renderWishlist();
 });
 
+function wishlistImageUrl(image) {
+    if (!image) return '';
+    if (image.startsWith('http')) return image;
+    if (image.startsWith('public/uploads/')) return BASE_URL + image;
+    if (image.startsWith('uploads/')) return BASE_URL + 'public/' + image;
+    return BASE_URL + image;
+}
+
 function renderWishlist() {
     const container = document.getElementById('wishlist-container');
     const emptyMsg = document.getElementById('wishlist-empty');
@@ -40,7 +48,7 @@ function renderWishlist() {
     container.innerHTML = favourites.map((item, index) => `
         <div style="border: 1px solid #eee; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column;">
             <div style="background: #f5f5f5; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; position: relative;">
-                <img src="${item.image.startsWith('http') ? item.image : BASE_URL + item.image}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: contain; padding: 1rem;">
+                <img src="${wishlistImageUrl(item.image)}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: contain; padding: 1rem;">
                 <button onclick="removeFromWishlist(${index})" style="position: absolute; top: 10px; right: 10px; background: #fff; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
                     ✕
                 </button>

@@ -19,7 +19,18 @@ function shopUrl(array $overrides): string {
 function productAssetPath($image): string {
     $image = (string)$image;
     if ($image === '') return '';
-    return str_starts_with($image, 'uploads/') ? $image : 'assets/images/' . $image;
+    if (str_starts_with($image, 'public/uploads/')) return $image;
+    if (str_starts_with($image, 'uploads/')) return 'public/' . $image;
+    return 'assets/images/' . $image;
+}
+
+function productDisplayType($product): string {
+    $type = trim((string)($product['type'] ?? ''));
+    if ($type === '' || $type === '0' || strpos($type, '?') !== false) {
+        return trim((string)($product['category'] ?? ''));
+    }
+
+    return $type;
 }
 ?>
 
@@ -92,7 +103,7 @@ function productAssetPath($image): string {
                         </a>
                         <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" class="product-info">
                             <span class="product-name"><?= htmlspecialchars($product['name']) ?></span>
-                            <span class="product-type"><?= htmlspecialchars($product['type'] ?? '') ?></span>
+                            <span class="product-type"><?= htmlspecialchars(productDisplayType($product)) ?></span>
                             <span class="product-price"><?= number_format((float)$product['price'], 0, ',', '.') ?> VND</span>
                         </a>
                     </div>
@@ -155,7 +166,23 @@ let cart = JSON.parse(localStorage.getItem('paceup_cart')) || [];
 
 function productImagePath(image) {
     if (!image) return '';
-    return image.startsWith('uploads/') ? image : 'assets/images/' + image;
+    if (image.startsWith('public/uploads/')) return image;
+    if (image.startsWith('uploads/')) return 'public/' + image;
+    return 'assets/images/' + image;
+}
+
+function assetUrl(image) {
+    if (!image) return '';
+    return image.startsWith('http') ? image : BASE_URL + productImagePath(image);
+}
+
+function productDisplayType(product) {
+    const type = String(product.type || '').trim();
+    if (!type || type === '0' || type.includes('?')) {
+        return String(product.category || '').trim();
+    }
+
+    return type;
 }
 
 function openQuickView(index) {
@@ -165,7 +192,7 @@ function openQuickView(index) {
     document.getElementById('modalImg').src = BASE_URL + productImagePath(product.image || '');
     document.getElementById('modalImg').alt = product.name;
     document.getElementById('modalName').textContent = product.name;
-    document.getElementById('modalCategory').textContent = product.type || '';
+    document.getElementById('modalCategory').textContent = productDisplayType(product);
     document.getElementById('modalPrice').textContent = formatPrice(product.price);
 
     document.getElementById('modalAddBtn').onclick = () => {
@@ -238,7 +265,7 @@ function updateCartUI() {
 
     cartItems.innerHTML = cart.map((item, i) => `
         <div class="cart-item">
-            <img src="${item.image.startsWith('http') ? item.image : BASE_URL + item.image}" alt="${item.name}">
+            <img src="${assetUrl(item.image)}" alt="${item.name}">
             <div class="cart-item-info">
                 <div class="item-name">${item.name}</div>
                 <div class="item-price">${formatPrice(item.price)}</div>

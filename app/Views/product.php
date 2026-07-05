@@ -4,7 +4,18 @@
 function productDetailAssetPath($image): string {
     $image = (string)$image;
     if ($image === '') return '';
-    return str_starts_with($image, 'uploads/') ? $image : 'assets/images/' . $image;
+    if (str_starts_with($image, 'public/uploads/')) return $image;
+    if (str_starts_with($image, 'uploads/')) return 'public/' . $image;
+    return 'assets/images/' . $image;
+}
+
+function productDetailType($product): string {
+    $type = trim((string)($product['type'] ?? ''));
+    if ($type === '' || $type === '0' || strpos($type, '?') !== false) {
+        return trim((string)($product['category'] ?? ''));
+    }
+
+    return $type;
 }
 ?>
 
@@ -59,7 +70,7 @@ function productDetailAssetPath($image): string {
 
         <div class="pd-info">
             <h1 class="pd-title"><?= htmlspecialchars($product['name']) ?></h1>
-            <div class="pd-category"><?= htmlspecialchars($product['type']) ?></div>
+            <div class="pd-category"><?= htmlspecialchars(productDetailType($product)) ?></div>
             <div class="pd-price"><?= number_format($product['price'], 0, ',', '.') ?> ₫</div>
 
             <div class="pd-color-header">
@@ -118,7 +129,7 @@ function productDetailAssetPath($image): string {
                 <div class="related-img"><img src="<?= BASE_URL . htmlspecialchars(productDetailAssetPath($r['image'])) ?>" alt="<?= htmlspecialchars($r['name']) ?>"></div>
                 <div class="related-info">
                     <span class="r-title"><?= htmlspecialchars($r['name']) ?></span>
-                    <span class="r-cat"><?= htmlspecialchars($r['type']) ?></span>
+                    <span class="r-cat"><?= htmlspecialchars(productDetailType($r)) ?></span>
                     <span class="r-price"><?= number_format($r['price'], 0, ',', '.') ?> ₫</span>
                 </div>
             </a>

@@ -177,6 +177,36 @@ include __DIR__ . '/partials/header.php';
 ?>
 
 <style>
+    .admin-container,
+    .admin-container *,
+    .admin-header,
+    .admin-header * {
+        font-family: "Segoe UI", Arial, sans-serif !important;
+        letter-spacing: 0 !important;
+    }
+    .admin-header h1,
+    .admin-header h2,
+    .admin-header h3,
+    .admin-container h1,
+    .admin-container h2,
+    .admin-container h3,
+    .admin-container [style*="font-heading"] {
+        font-family: "Segoe UI", Arial, sans-serif !important;
+        line-height: 1.25 !important;
+        font-weight: 800 !important;
+        text-transform: none !important;
+    }
+    .admin-header button,
+    .admin-container button,
+    .admin-container .btn {
+        font-family: "Segoe UI", Arial, sans-serif !important;
+        line-height: 1.2 !important;
+        font-weight: 700 !important;
+        text-transform: none !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
     .admin-container button, 
     .admin-container .btn,
     .admin-header button {
@@ -207,7 +237,6 @@ include __DIR__ . '/partials/header.php';
             <li><a href="?page=orders" class="<?= $page === 'orders' ? 'active' : '' ?>">Đơn hàng</a></li>
             <li><a href="<?= BASE_URL ?>admin/inventory">Kho hàng</a></li>
             <li><a href="?page=coupons" class="<?= $page === 'coupons' ? 'active' : '' ?>">Mã giảm giá</a></li>
-            <li><a href="<?= BASE_URL ?>admin/reviews">Đánh giá</a></li>
             <li><a href="?page=users" class="<?= $page === 'users' ? 'active' : '' ?>">Người dùng</a></li>
             <li><a href="?page=settings" class="<?= $page === 'settings' ? 'active' : '' ?>">Cài đặt</a></li>
         </ul>
@@ -217,7 +246,7 @@ include __DIR__ . '/partials/header.php';
         <?php if ($page === 'dashboard'): ?>
             <div class="admin-header" style="border-bottom: 1px solid #eee; padding-bottom: 1rem; margin-bottom: 2rem; background: transparent; box-shadow: none;">
                 <div>
-                    <h2 style="font-size: 2rem; letter-spacing: 1px;">Dashboard</h2>
+                    <h2 style="font-size: 2rem; letter-spacing: 0; line-height: 1.25; font-family: var(--font-ui); font-weight: 800;">Dashboard</h2>
                     <p style="color: #666; font-family: var(--font-ui); font-size: 0.95rem;">Xin chào Admin, đây là tổng quan hoạt động kinh doanh hôm nay.</p>
                 </div>
             </div>

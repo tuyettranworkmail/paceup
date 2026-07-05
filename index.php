@@ -49,6 +49,7 @@ $router->add('/admin/products', 'Admin\ProductController', 'index');
 $router->add('/admin/products/create', 'Admin\ProductController', 'create');
 $router->add('/admin/products/edit', 'Admin\ProductController', 'edit');
 $router->add('/admin/products/delete', 'Admin\ProductController', 'delete');
+$router->add('/admin/products/destroy', 'Admin\ProductController', 'destroy');
 $router->add('/admin/products/variants/add', 'Admin\ProductController', 'addVariant');
 $router->add('/admin/products/variants/update', 'Admin\ProductController', 'updateVariant');
 $router->add('/admin/products/variants/delete', 'Admin\ProductController', 'deleteVariant');
@@ -56,14 +57,10 @@ $router->add('/admin/products/images/primary', 'Admin\ProductController', 'setPr
 $router->add('/admin/products/images/delete', 'Admin\ProductController', 'deleteImage');
 $router->add('/admin/categories', 'Admin\CategoryController', 'index');
 $router->add('/admin/categories/create', 'Admin\CategoryController', 'create');
-$router->add('/admin/categories/edit', 'Admin\CategoryController', 'edit');
 $router->add('/admin/categories/delete', 'Admin\CategoryController', 'delete');
 $router->add('/admin/inventory', 'Admin\InventoryController', 'index');
 $router->add('/admin/inventory/update', 'Admin\InventoryController', 'update');
-$router->add('/admin/reviews', 'Admin\ReviewController', 'index');
-$router->add('/admin/reviews/approve', 'Admin\ReviewController', 'approve');
-$router->add('/admin/reviews/hide', 'Admin\ReviewController', 'hide');
-$router->add('/admin/reviews/delete', 'Admin\ReviewController', 'delete');
+$router->add('/admin/inventory/variants/create', 'Admin\InventoryController', 'createVariant');
 $router->add('/account', 'AccountController', 'index');
 $router->add('/apply-coupon', 'CheckoutController', 'applyCoupon');
 

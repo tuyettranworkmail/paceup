@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../_helpers.php';
-adminStart('Products', 'products', $flash ?? null);
+adminStart('Sản phẩm', 'products', $flash ?? null);
 ?>
 
 <div class="admin-panel">
@@ -61,6 +61,14 @@ adminStart('Products', 'products', $flash ?? null);
     </thead>
     <tbody>
         <?php foreach ($products as $product): ?>
+            <?php $isActive = (int)$product['status'] === 1; ?>
+            <?php
+            $genderLabel = ($product['gender'] ?? '') === 'women' ? 'Women' : (($product['gender'] ?? '') === 'men' ? 'Men' : '');
+            $metaParts = array_filter([
+                trim((string)($product['category_name'] ?? '')),
+                $genderLabel
+            ]);
+            ?>
             <tr>
                 <td><?= (int)$product['id'] ?></td>
                 <td>
@@ -72,7 +80,7 @@ adminStart('Products', 'products', $flash ?? null);
                 </td>
                 <td>
                     <strong><?= adminE($product['name']) ?></strong><br>
-                    <small><?= adminE($product['type'] ?? '') ?> <?= adminE($product['gender'] ?? '') ?></small>
+                    <small><?= adminE(implode(' / ', $metaParts)) ?></small>
                 </td>
                 <td><?= adminE($product['category_name'] ?? '') ?></td>
                 <td><?= adminMoney($product['base_price'] ?? 0) ?></td>
@@ -84,9 +92,14 @@ adminStart('Products', 'products', $flash ?? null);
                 <td>
                     <div class="admin-actions">
                         <a class="admin-btn light" href="<?= BASE_URL ?>admin/products/edit?id=<?= (int)$product['id'] ?>">Edit</a>
-                        <form method="post" action="<?= BASE_URL ?>admin/products/delete" onsubmit="return confirm('Hide this product?')">
+                        <form method="post" action="<?= BASE_URL ?>admin/products/delete" onsubmit="return confirm('<?= $isActive ? 'Hide' : 'Show' ?> this product?')">
                             <input type="hidden" name="id" value="<?= (int)$product['id'] ?>">
-                            <button class="admin-btn danger" type="submit">Hide</button>
+                            <input type="hidden" name="status" value="<?= $isActive ? 0 : 1 ?>">
+                            <button class="admin-btn <?= $isActive ? 'danger' : 'ok' ?>" type="submit"><?= $isActive ? 'Hide' : 'Show' ?></button>
+                        </form>
+                        <form method="post" action="<?= BASE_URL ?>admin/products/destroy" onsubmit="return confirm('Delete this product permanently?')">
+                            <input type="hidden" name="id" value="<?= (int)$product['id'] ?>">
+                            <button class="admin-btn delete" type="submit">Delete</button>
                         </form>
                     </div>
                 </td>
