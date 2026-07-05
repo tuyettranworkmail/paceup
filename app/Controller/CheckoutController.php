@@ -85,10 +85,13 @@ class CheckoutController {
             if ($quantity > 0 && $price >= 0) {
                 $orderModel->createOrderItem([
                     'order_id' => $orderId,
-                    'variant_id' => null, // or $item['product_id'] if we store it
+                    'product_id' => $item['product_id'] ?? null,
                     'quantity' => $quantity,
                     'price_at_time' => $price
                 ]);
+                if (isset($item['product_id'])) {
+                    $orderModel->incrementSoldCount($item['product_id'], $quantity);
+                }
             }
         }
         
@@ -117,9 +120,17 @@ class CheckoutController {
         }
 
         $coupon = $result['data'];
-        $discount = $orderTotal * ($coupon['discount_percent'] / 100);
-        if ($coupon['max_discount'] && $discount > $coupon['max_discount']) {
-            $discount = floatval($coupon['max_discount']);
+        $discount = 0;
+        $discountPercent = floatval($coupon['discount_percent'] ?? 0);
+        $maxDiscount = floatval($coupon['max_discount'] ?? 0);
+
+        if ($discountPercent > 0) {
+            $discount = $orderTotal * ($discountPercent / 100);
+            if ($maxDiscount > 0 && $discount > $maxDiscount) {
+                $discount = $maxDiscount;
+            }
+        } elseif ($maxDiscount > 0) {
+            $discount = $maxDiscount;
         }
 
         echo json_encode([

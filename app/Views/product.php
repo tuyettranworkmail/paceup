@@ -19,7 +19,7 @@ function productDetailType($product): string {
 }
 ?>
 
-// Controller provides $product and $related
+<?php // Controller provides $product and $related ?>
 
 <style>
 .product-detail-page { max-width: 1200px; margin: 2rem auto; padding: 0 2rem; font-family: var(--font-body); }

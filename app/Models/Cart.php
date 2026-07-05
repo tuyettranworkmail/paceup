@@ -23,10 +23,10 @@ class Cart extends BaseModel {
 
     public function getCartByUserId($userId) {
         $stmt = $this->db->prepare("
-            SELECT c.*, p.name, p.base_price as price, p.slug, pi.image_url 
+            SELECT c.*, p.name, p.base_price as price, p.slug, 
+                   (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY is_primary DESC, id ASC LIMIT 1) as image_url
             FROM cart c
             JOIN product p ON c.product_id = p.id
-            LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = 1
             WHERE c.user_id = :user_id
         ");
         $stmt->execute(['user_id' => $userId]);
@@ -35,10 +35,10 @@ class Cart extends BaseModel {
 
     public function getCartBySessionId($sessionId) {
         $stmt = $this->db->prepare("
-            SELECT c.*, p.name, p.base_price as price, p.slug, pi.image_url 
+            SELECT c.*, p.name, p.base_price as price, p.slug, 
+                   (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY is_primary DESC, id ASC LIMIT 1) as image_url
             FROM cart c
             JOIN product p ON c.product_id = p.id
-            LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = 1
             WHERE c.session_id = :session_id
         ");
         $stmt->execute(['session_id' => $sessionId]);

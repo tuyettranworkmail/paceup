@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th7 05, 2026 lúc 10:31 AM
+-- Thời gian đã tạo: Th7 05, 2026 lúc 03:19 PM
 -- Phiên bản máy phục vụ: 10.4.32-MariaDB
--- Phiên bản PHP: 8.2.12
+-- Phiên bản PHP: 8.0.30
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -48,6 +48,15 @@ CREATE TABLE `cart` (
   `quantity` int(11) DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Đang đổ dữ liệu cho bảng `cart`
+--
+
+INSERT INTO `cart` (`id`, `user_id`, `session_id`, `product_id`, `quantity`) VALUES
+(49, 1, NULL, 136, 1),
+(50, 1, NULL, 122, 1),
+(51, 1, NULL, 121, 1);
+
 -- --------------------------------------------------------
 
 --
@@ -74,7 +83,9 @@ INSERT INTO `categories` (`id`, `name`, `slug`, `status`) VALUES
 (105, 'Tennis', 'tennis', 1),
 (106, 'Training', 'training', 1),
 (107, 'Slide', 'slide', 1),
-(108, 'Golf', 'golf', 1);
+(108, 'Golf', 'golf', 1),
+(109, 'Speeding', 'speed', 0),
+(110, 'Plushie', 'plushie', 1);
 
 -- --------------------------------------------------------
 
@@ -93,6 +104,14 @@ CREATE TABLE `coupons` (
   `start_date` datetime DEFAULT NULL,
   `expiry_date` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `coupons`
+--
+
+INSERT INTO `coupons` (`id`, `code`, `discount_percent`, `max_discount`, `min_order_amount`, `usage_limit`, `used_count`, `start_date`, `expiry_date`) VALUES
+(1, 'Summer', 30.00, NULL, 100000.00, 20, 0, '2026-07-05 00:00:00', '2026-07-06 00:00:00'),
+(2, 'Paceup', NULL, 300000.00, 0.00, 100, 0, '2026-07-05 00:00:00', '2026-07-06 00:00:00');
 
 -- --------------------------------------------------------
 
@@ -123,6 +142,13 @@ CREATE TABLE `daily_revenue_reports` (
   `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Đang đổ dữ liệu cho bảng `daily_revenue_reports`
+--
+
+INSERT INTO `daily_revenue_reports` (`id`, `report_date`, `total_orders`, `gross_revenue`, `total_discount`, `net_revenue`, `created_at`) VALUES
+(1, '2026-07-05', 1, 9000000.00, 0.00, 9000000.00, '2026-07-05 19:26:34');
+
 -- --------------------------------------------------------
 
 --
@@ -143,7 +169,15 @@ CREATE TABLE `inventory_logs` (
 INSERT INTO `inventory_logs` (`id`, `variant_id`, `quantity_changed`, `reason`) VALUES
 (1, NULL, -2, 'Khách mua hàng, Order ID: 1'),
 (2, NULL, -1, 'Khách mua hàng, Order ID: 2'),
-(3, NULL, -2, 'Khách mua hàng, Order ID: 3');
+(3, NULL, -2, 'Khách mua hàng, Order ID: 3'),
+(4, 1, 450, 'Manual inventory update'),
+(5, NULL, -1, 'Khách mua hàng, Order ID: 4'),
+(6, 2, 100, 'update'),
+(7, NULL, -1, 'Khách mua hàng, Order ID: 5'),
+(8, NULL, -1, 'Khách mua hàng, Order ID: 6'),
+(9, NULL, -1, 'Khách mua hàng, Order ID: 7'),
+(10, NULL, -1, 'Khách mua hàng, Order ID: 7'),
+(11, NULL, -1, 'Khách mua hàng, Order ID: 7');
 
 --
 -- Bẫy `inventory_logs`
@@ -246,7 +280,19 @@ CREATE TABLE `orders` (
 INSERT INTO `orders` (`id`, `order_code`, `user_id`, `total_amount`, `coupon_id`, `final_amount`, `shipping_name`, `shipping_phone`, `shipping_address`, `status`, `created_at`, `shipping_email`) VALUES
 (1, 'ORD-20260704-79C103', 1, 6800000.00, NULL, 6800000.00, '_06 Deeta', '12345', '123 qdad', 'pending', '2026-07-04 13:02:33', 'dinhthuyanha@gmail.com'),
 (2, 'ORD-20260704-D74553', 2, 3300000.00, NULL, 3300000.00, '1231', '12345', '123 qdad', 'pending', '2026-07-04 13:14:11', 'dinhthuyanha@gmail.com'),
-(3, 'ORD-20260704-813DB8', 5, 9200000.00, NULL, 9200000.00, '_06 Deeta', '0123456789', '123 qdad', 'pending', '2026-07-04 20:19:32', 'dinhthuyanha@gmail.com');
+(3, 'ORD-20260704-813DB8', 5, 9200000.00, NULL, 9200000.00, '_06 Deeta', '0123456789', '123 qdad', 'pending', '2026-07-04 20:19:32', 'dinhthuyanha@gmail.com'),
+(4, 'ORD-20260705-2A542B', 1, 3400000.00, NULL, 3400000.00, 'duy', '0242512151', 'SigmaStreet', 'pending', '2026-07-05 15:40:30', 'duy@gmail.com'),
+(5, 'ORD-20260705-9500F0', 7, 3500000.00, NULL, 3500000.00, 'duy', '0939588189', 'SigmaStreet', 'confirmed', '2026-07-05 16:46:42', 'duy@gmail.com'),
+(6, 'ORD-20260705-E37C9B', 1, 3500000.00, NULL, 3500000.00, 'duy', '0939588189', 'SigmaStreet', 'pending', '2026-07-05 19:07:40', 'duy@gmail.com'),
+(7, 'ORD-20260705-D7D1CD', 1, 9000000.00, NULL, 9000000.00, 'skibidi', '0982870458', 'SigmaStreet', 'delivered', '2026-07-05 19:10:07', 'duy@gmail.com'),
+(8, 'ORD-20260705-C5E706', 1, 11500000.00, 1, 8050000.00, 'duy', '0939588189', 'SigmaStreet', 'pending', '2026-07-05 20:16:28', 'duy@gmail.com'),
+(9, 'ORD-20260705-043C20', 1, 11500000.00, 1, 8050000.00, 'duy', '0939588189', 'SigmaStreet', 'pending', '2026-07-05 20:16:30', 'duy@gmail.com'),
+(10, 'ORD-20260705-30BE75', 1, 11500000.00, 1, 8050000.00, 'duy', '0939588189', 'SigmaStreet', 'pending', '2026-07-05 20:16:34', 'duy@gmail.com'),
+(11, 'ORD-20260705-5316AD', 1, 11500000.00, 1, 8050000.00, 'duy', '0939588189', 'SigmaStreet', 'pending', '2026-07-05 20:16:37', 'duy@gmail.com'),
+(12, 'ORD-20260705-2E1ABA', 1, 11500000.00, 1, 8050000.00, 'duy', '0939588189', 'SigmaStreet', 'pending', '2026-07-05 20:16:42', 'duy@gmail.com'),
+(13, 'ORD-20260705-890470', 1, 11500000.00, 1, 8050000.00, 'duy', '0939588189', 'SigmaStreet', 'pending', '2026-07-05 20:16:48', 'duy@gmail.com'),
+(14, 'ORD-20260705-A7505B', 1, 11500000.00, NULL, 11500000.00, 'duy', '0939588189', 'SigmaStreet', 'pending', '2026-07-05 20:17:31', 'duy@gmail.com'),
+(15, 'ORD-20260705-5E360E', 1, 11500000.00, NULL, 11500000.00, 'duy', '0939588189', 'SigmaStreet', 'pending', '2026-07-05 20:18:00', 'duy@gmail.com');
 
 --
 -- Bẫy `orders`
@@ -308,7 +354,7 @@ DELIMITER ;
 CREATE TABLE `order_items` (
   `id` int(11) NOT NULL,
   `order_id` int(11) DEFAULT NULL,
-  `variant_id` int(11) DEFAULT NULL,
+  `product_id` int(11) DEFAULT NULL,
   `quantity` int(11) NOT NULL,
   `price_at_time` decimal(10,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -317,10 +363,16 @@ CREATE TABLE `order_items` (
 -- Đang đổ dữ liệu cho bảng `order_items`
 --
 
-INSERT INTO `order_items` (`id`, `order_id`, `variant_id`, `quantity`, `price_at_time`) VALUES
+INSERT INTO `order_items` (`id`, `order_id`, `product_id`, `quantity`, `price_at_time`) VALUES
 (1, 1, NULL, 2, 3400000.00),
 (2, 2, NULL, 1, 3300000.00),
-(3, 3, NULL, 2, 4600000.00);
+(3, 3, NULL, 2, 4600000.00),
+(4, 4, NULL, 1, 3400000.00),
+(5, 5, NULL, 1, 3500000.00),
+(6, 6, NULL, 1, 3500000.00),
+(7, 7, NULL, 1, 3500000.00),
+(8, 7, NULL, 1, 2100000.00),
+(9, 7, NULL, 1, 3400000.00);
 
 --
 -- Bẫy `order_items`
@@ -346,6 +398,15 @@ CREATE TABLE `order_status_logs` (
   `changed_by` int(11) DEFAULT NULL,
   `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `order_status_logs`
+--
+
+INSERT INTO `order_status_logs` (`id`, `order_id`, `status`, `changed_by`, `created_at`) VALUES
+(1, 5, 'confirmed', NULL, '2026-07-05 19:06:46'),
+(2, 7, 'confirmed', NULL, '2026-07-05 19:26:25'),
+(3, 7, 'delivered', NULL, '2026-07-05 19:26:34');
 
 -- --------------------------------------------------------
 
@@ -457,7 +518,8 @@ INSERT INTO `product` (`id`, `category_id`, `name`, `slug`, `description`, `base
 (131, 102, 'Nike Air Rift Neo', 'nike-air-rift-neo', 'Nike Air Rift Neo chính hãng Nike. Sản phẩm thuộc dòng Lifestyle, cam kết chất lượng 100% và bảo hành đầy đủ.', 3100000.00, 0, 1, 'Giày Lifestyle Nữ', 'women'),
 (132, 105, 'Nike Court Legacy NN', 'nike-court-legacy-nn', 'Nike Court Legacy NN chính hãng Nike. Sản phẩm thuộc dòng Tennis, cam kết chất lượng 100% và bảo hành đầy đủ.', 2200000.00, 0, 1, 'Giày Tennis Nữ', 'women'),
 (133, 100, 'Nike Motiva 2', 'nike-motiva-2', 'Nike Motiva 2 chính hãng Nike. Sản phẩm thuộc dòng Running, cam kết chất lượng 100% và bảo hành đầy đủ.', 3400000.00, 0, 1, 'Giày chạy bộ Nữ', 'women'),
-(134, 107, 'Nike ReactX Rejuven8', 'nike-reactx-rejuven8', 'Nike ReactX Rejuven8 chính hãng Nike. Sản phẩm thuộc dòng Slide, cam kết chất lượng 100% và bảo hành đầy đủ.', 2100000.00, 0, 1, 'Dép Nữ', 'women');
+(134, 107, 'Nike ReactX Rejuven8', 'nike-reactx-rejuven8', 'Nike ReactX Rejuven8 chính hãng Nike. Sản phẩm thuộc dòng Slide, cam kết chất lượng 100% và bảo hành đầy đủ.', 2100000.00, 0, 1, 'Dép Nữ', 'women'),
+(136, 110, 'Biblos plush', 'plushie', 'Evil', 3500000.00, 0, 1, 'Plushie', 'men');
 
 -- --------------------------------------------------------
 
@@ -511,7 +573,8 @@ INSERT INTO `product_images` (`id`, `product_id`, `image_url`, `is_primary`) VAL
 (32, 131, 'WMNS+NIKE+AIR++RIFT+NEO.avif', 1),
 (33, 132, 'WMNS+NIKE+COURT+LEGACY+NN.avif', 1),
 (34, 133, 'WMNS+NIKE+MOTIVA+2.avif', 1),
-(35, 134, 'WMNS+NIKE+REACTX+REJUVEN8.avif', 1);
+(35, 134, 'WMNS+NIKE+REACTX+REJUVEN8.avif', 1),
+(37, 136, 'public/uploads/products/img_6a4a262c60c271.16553048.jpg', 1);
 
 -- --------------------------------------------------------
 
@@ -542,6 +605,14 @@ CREATE TABLE `product_variants` (
   `stock_quantity` int(11) DEFAULT 0,
   `price_modifier` decimal(10,2) DEFAULT 0.00
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `product_variants`
+--
+
+INSERT INTO `product_variants` (`id`, `product_id`, `size`, `color`, `stock_quantity`, `price_modifier`) VALUES
+(1, 133, 'EU 42', 'Black', 550, 300000.00),
+(2, 136, 'EU 45', 'Black', 100, 0.00);
 
 -- --------------------------------------------------------
 
@@ -594,11 +665,12 @@ CREATE TABLE `user` (
 --
 
 INSERT INTO `user` (`id`, `full_name`, `display_name`, `email`, `phone`, `avatar`, `password`, `role`, `status`, `created_at`) VALUES
-(1, 'Admin', 'Test1234', 'admin@123', '0123456789', NULL, '$2y$10$Mpt6opJmon7cLQakVyk/e.4zNBi84IVHBu8dxHItssNnmW7Be.YNy', 'admin', 1, '2026-06-25 07:35:38'),
+(1, 'Admin', 'testingdn', 'admin@123', '0123456789', NULL, '$2y$10$Mpt6opJmon7cLQakVyk/e.4zNBi84IVHBu8dxHItssNnmW7Be.YNy', 'admin', 1, '2026-06-25 07:35:38'),
 (2, 'Deeta', 'Ăn thịt người bán giày', 'user@123', '12345', 'public/uploads/avatars/1783138213_6a4887a573454.png', '$2y$10$0IO910WayVRynf5DZvjX2uTP1vqCHudiMNMm9Oo1jhS6CiLFAtFwW', 'user', 1, '2026-06-25 07:35:38'),
 (4, 'Điu', 'Ăn thịt thùi', 'user0202@gmail.com', '0123456789', NULL, '$2y$10$i0Yyx/TSELV4lWYMZ08mmOS2lHtxc/JKEQZ//myFWJFeZr3xLhSfu', 'user', 1, '2026-07-04 13:48:22'),
 (5, '_06 Deeta', NULL, 'dinhthuyanha@gmail.com', '0234567891', NULL, '$2y$10$ur1sJMCTE9b5y/BuNQ/fLuJneRI1gzNJcf9slM2Vlx/xX5FkaZBLi', 'user', 1, '2026-07-04 20:17:54'),
-(6, 'Admin_number1', 'Ạc min', 'admin1@gmail.com', '0123123', NULL, '$2y$10$Ges0kPKvLlg/YfEeCJ3IBupJQIU69bOdMTqGvFFIr8lvJ8QgkIbB.', 'admin', 1, '2026-07-05 10:21:36');
+(6, 'Admin_number1', 'Ạc min', 'admin1@gmail.com', '0123123', NULL, '$2y$10$Ges0kPKvLlg/YfEeCJ3IBupJQIU69bOdMTqGvFFIr8lvJ8QgkIbB.', 'admin', 1, '2026-07-05 10:21:36'),
+(7, 'duy', 'BIblos', 'duy@gmail.com', '0939588189', 'public/uploads/avatars/1783244821_6a4a281540d3b.jpg', '$2y$10$FWzBdM1fpzYkuyekr8ZahejUG9ppCt/JcSVFm.utjAbAV3lS7efXu', 'user', 1, '2026-07-05 16:45:55');
 
 -- --------------------------------------------------------
 
@@ -622,7 +694,9 @@ INSERT INTO `user_addresses` (`id`, `user_id`, `address_line`, `ward_district_ci
 (1, 2, '123312 AD', 'HCM', 0),
 (2, 2, '3234 vptjad', 'HCM', 1),
 (3, 1, '3234 vptjad', 'HCM', 0),
-(4, 1, '123312 AD', 'HCM', 1);
+(4, 1, '123312 AD', 'HCM', 1),
+(5, 7, 'sigmastreet', 'ohio', 0),
+(6, 7, 'sigmastreet', 'ohio', 1);
 
 -- --------------------------------------------------------
 
@@ -635,6 +709,13 @@ CREATE TABLE `wishlist` (
   `user_id` int(11) DEFAULT NULL,
   `product_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `wishlist`
+--
+
+INSERT INTO `wishlist` (`id`, `user_id`, `product_id`) VALUES
+(7, 1, 134);
 
 --
 -- Chỉ mục cho các bảng đã đổ
@@ -652,7 +733,7 @@ ALTER TABLE `banner`
 ALTER TABLE `cart`
   ADD PRIMARY KEY (`id`),
   ADD KEY `user_id` (`user_id`),
-  ADD KEY `variant_id` (`variant_id`);
+  ADD KEY `variant_id` (`product_id`);
 
 --
 -- Chỉ mục cho bảng `categories`
@@ -710,7 +791,7 @@ ALTER TABLE `orders`
 ALTER TABLE `order_items`
   ADD PRIMARY KEY (`id`),
   ADD KEY `order_id` (`order_id`),
-  ADD KEY `variant_id` (`variant_id`);
+  ADD KEY `variant_id` (`product_id`);
 
 --
 -- Chỉ mục cho bảng `order_status_logs`
@@ -827,19 +908,19 @@ ALTER TABLE `banner`
 -- AUTO_INCREMENT cho bảng `cart`
 --
 ALTER TABLE `cart`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=52;
 
 --
 -- AUTO_INCREMENT cho bảng `categories`
 --
 ALTER TABLE `categories`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=109;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=111;
 
 --
 -- AUTO_INCREMENT cho bảng `coupons`
 --
 ALTER TABLE `coupons`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT cho bảng `custom_notes`
@@ -851,13 +932,13 @@ ALTER TABLE `custom_notes`
 -- AUTO_INCREMENT cho bảng `daily_revenue_reports`
 --
 ALTER TABLE `daily_revenue_reports`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT cho bảng `inventory_logs`
 --
 ALTER TABLE `inventory_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT cho bảng `logs`
@@ -869,19 +950,19 @@ ALTER TABLE `logs`
 -- AUTO_INCREMENT cho bảng `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT cho bảng `order_items`
 --
 ALTER TABLE `order_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT cho bảng `order_status_logs`
 --
 ALTER TABLE `order_status_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT cho bảng `password_reset_otp`
@@ -911,13 +992,13 @@ ALTER TABLE `post_categories`
 -- AUTO_INCREMENT cho bảng `product`
 --
 ALTER TABLE `product`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=135;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=137;
 
 --
 -- AUTO_INCREMENT cho bảng `product_images`
 --
 ALTER TABLE `product_images`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT cho bảng `product_sales_reports`
@@ -929,7 +1010,7 @@ ALTER TABLE `product_sales_reports`
 -- AUTO_INCREMENT cho bảng `product_variants`
 --
 ALTER TABLE `product_variants`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT cho bảng `reviews`
@@ -947,19 +1028,19 @@ ALTER TABLE `setting`
 -- AUTO_INCREMENT cho bảng `user`
 --
 ALTER TABLE `user`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT cho bảng `user_addresses`
 --
 ALTER TABLE `user_addresses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT cho bảng `wishlist`
 --
 ALTER TABLE `wishlist`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- Các ràng buộc cho các bảng đã đổ
@@ -969,8 +1050,7 @@ ALTER TABLE `wishlist`
 -- Các ràng buộc cho bảng `cart`
 --
 ALTER TABLE `cart`
-  ADD CONSTRAINT `cart_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `cart_ibfk_2` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `cart_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE;
 
 --
 -- Các ràng buộc cho bảng `inventory_logs`
@@ -996,7 +1076,7 @@ ALTER TABLE `orders`
 --
 ALTER TABLE `order_items`
   ADD CONSTRAINT `order_items_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `order_items_ibfk_2` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `order_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `product_variants` (`id`) ON DELETE SET NULL;
 
 --
 -- Các ràng buộc cho bảng `order_status_logs`

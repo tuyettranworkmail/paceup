@@ -2,9 +2,9 @@
 
 <?php
 $gender = isset($_GET['gender']) ? $_GET['gender'] : 'all';
-$genderLabel = 'Tat ca san pham';
-if ($gender === 'men') $genderLabel = 'San pham Nam';
-if ($gender === 'women') $genderLabel = 'San pham Nu';
+$genderLabel = 'Tất cả sản phẩm';
+if ($gender === 'men') $genderLabel = 'Sản phẩm Nam';
+if ($gender === 'women') $genderLabel = 'Sản phẩm Nữ';
 
 $category = $_GET['category'] ?? 'all';
 $sort = $_GET['sort'] ?? 'default';
@@ -46,12 +46,12 @@ function productDisplayType($product): string {
                     <?php if ($keyword !== ''): ?>
                         <input type="hidden" name="q" value="<?= htmlspecialchars($keyword) ?>">
                     <?php endif; ?>
-                    <label for="sortSel">Sap xep</label>
+                    <label for="sortSel">Sắp xếp</label>
                     <select name="sort" id="sortSel" onchange="this.form.submit()">
-                        <option value="default" <?= $sort === 'default' ? 'selected' : '' ?>>Mac dinh</option>
-                        <option value="price-asc" <?= $sort === 'price-asc' ? 'selected' : '' ?>>Gia: Thap den cao</option>
-                        <option value="price-desc" <?= $sort === 'price-desc' ? 'selected' : '' ?>>Gia: Cao den thap</option>
-                        <option value="name-asc" <?= $sort === 'name-asc' ? 'selected' : '' ?>>Ten: A den Z</option>
+                        <option value="default" <?= $sort === 'default' ? 'selected' : '' ?>>Mặc định</option>
+                        <option value="price-asc" <?= $sort === 'price-asc' ? 'selected' : '' ?>>Giá: Thấp đến cao</option>
+                        <option value="price-desc" <?= $sort === 'price-desc' ? 'selected' : '' ?>>Giá: Cao đến thấp</option>
+                        <option value="name-asc" <?= $sort === 'name-asc' ? 'selected' : '' ?>>Tên: A đến Z</option>
                     </select>
                 </form>
             </div>
@@ -60,28 +60,28 @@ function productDisplayType($product): string {
         <div class="shop-layout">
             <aside class="shop-sidebar">
                 <ul class="filter-cat-list">
-                    <li><a href="<?= htmlspecialchars(shopUrl(['category' => 'all'])) ?>" class="<?= $category === 'all' ? 'active' : '' ?>">Tat ca</a></li>
+                    <li><a href="<?= htmlspecialchars(shopUrl(['category' => 'all'])) ?>" class="<?= $category === 'all' ? 'active' : '' ?>">Tất cả</a></li>
                     <?php foreach ($categories as $c): ?>
                         <li><a href="<?= htmlspecialchars(shopUrl(['category' => $c['name']])) ?>" class="<?= $category === $c['name'] ? 'active' : '' ?>"><?= htmlspecialchars($c['name']) ?></a></li>
                     <?php endforeach; ?>
                 </ul>
 
                 <details class="filter-group" <?= $gender !== 'all' ? 'open' : '' ?>>
-                    <summary>Gioi tinh</summary>
+                    <summary>Giới tính</summary>
                     <ul>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['gender' => 'all'])) ?>" class="<?= $gender === 'all' ? 'active' : '' ?>">Tat ca</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['gender' => 'all'])) ?>" class="<?= $gender === 'all' ? 'active' : '' ?>">Tất cả</a></li>
                         <li><a href="<?= htmlspecialchars(shopUrl(['gender' => 'men'])) ?>" class="<?= $gender === 'men' ? 'active' : '' ?>">Nam</a></li>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['gender' => 'women'])) ?>" class="<?= $gender === 'women' ? 'active' : '' ?>">Nu</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['gender' => 'women'])) ?>" class="<?= $gender === 'women' ? 'active' : '' ?>">Nữ</a></li>
                     </ul>
                 </details>
 
                 <details class="filter-group" <?= $priceRange !== 'all' ? 'open' : '' ?>>
-                    <summary>Gia</summary>
+                    <summary>Giá</summary>
                     <ul>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'all'])) ?>" class="<?= $priceRange === 'all' ? 'active' : '' ?>">Tat ca</a></li>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'lt3'])) ?>" class="<?= $priceRange === 'lt3' ? 'active' : '' ?>">Duoi 3.000.000 VND</a></li>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => '3to5'])) ?>" class="<?= $priceRange === '3to5' ? 'active' : '' ?>">3.000.000 - 5.000.000 VND</a></li>
-                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'gt5'])) ?>" class="<?= $priceRange === 'gt5' ? 'active' : '' ?>">Tren 5.000.000 VND</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'all'])) ?>" class="<?= $priceRange === 'all' ? 'active' : '' ?>">Tất cả</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'lt3'])) ?>" class="<?= $priceRange === 'lt3' ? 'active' : '' ?>">Dưới 3.000.000 VNĐ</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => '3to5'])) ?>" class="<?= $priceRange === '3to5' ? 'active' : '' ?>">3.000.000 - 5.000.000 VNĐ</a></li>
+                        <li><a href="<?= htmlspecialchars(shopUrl(['price' => 'gt5'])) ?>" class="<?= $priceRange === 'gt5' ? 'active' : '' ?>">Trên 5.000.000 VNĐ</a></li>
                     </ul>
                 </details>
             </aside>
@@ -96,7 +96,7 @@ function productDisplayType($product): string {
                             <?php endif; ?>
                             <div class="product-actions" onclick="event.preventDefault(); event.stopPropagation()">
                                 <button class="btn-add-cart" onclick="addToCart(<?= (int)$product['id'] ?>)">
-                                    Them vao gio
+                                    Thêm vào giỏ
                                 </button>
                                 <button class="btn-quick-view" onclick="openQuickView(<?= $index ?>)">Xem nhanh</button>
                             </div>
@@ -104,13 +104,13 @@ function productDisplayType($product): string {
                         <a href="<?= BASE_URL ?>product?id=<?= (int)$product['id'] ?>" class="product-info">
                             <span class="product-name"><?= htmlspecialchars($product['name']) ?></span>
                             <span class="product-type"><?= htmlspecialchars(productDisplayType($product)) ?></span>
-                            <span class="product-price"><?= number_format((float)$product['price'], 0, ',', '.') ?> VND</span>
+                            <span class="product-price"><?= number_format((float)$product['price'], 0, ',', '.') ?> VNĐ</span>
                         </a>
                     </div>
                 <?php endforeach; ?>
                 <?php if (empty($products)): ?>
                     <p class="shop-empty">
-                        <?= $keyword !== '' ? 'No results found for "' . htmlspecialchars($keyword) . '".' : 'Khong co san pham phu hop bo loc.' ?>
+                        <?= $keyword !== '' ? 'Không tìm thấy kết quả cho "' . htmlspecialchars($keyword) . '".' : 'Không có sản phẩm phù hợp bộ lọc.' ?>
                     </p>
                 <?php endif; ?>
             </div>
@@ -121,16 +121,16 @@ function productDisplayType($product): string {
 <div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
 <div class="cart-sidebar" id="cartSidebar">
     <div class="cart-sidebar-header">
-        <h3>Gio hang (<span id="cartCount">0</span>)</h3>
+        <h3>Giỏ hàng (<span id="cartCount">0</span>)</h3>
         <button class="cart-close-btn" onclick="toggleCart()">x</button>
     </div>
     <div class="cart-items" id="cartItems"></div>
     <div class="cart-footer">
         <div class="cart-total">
-            <span class="label">Tong cong</span>
-            <span class="amount" id="cartTotal">0 VND</span>
+            <span class="label">Tổng cộng</span>
+            <span class="amount" id="cartTotal">0 VNĐ</span>
         </div>
-        <button class="btn-checkout" onclick="checkout()">Thanh toan</button>
+        <button class="btn-checkout" onclick="checkout()">Thanh toán</button>
     </div>
 </div>
 
@@ -144,16 +144,16 @@ function productDisplayType($product): string {
             <h2 id="modalName"></h2>
             <p class="modal-category" id="modalCategory"></p>
             <p class="modal-price" id="modalPrice"></p>
-            <p class="modal-desc">San pham Nike chinh hang. Cam ket chat luong va bao hanh day du.</p>
+            <p class="modal-desc">Sản phẩm Nike chính hãng. Cam kết chất lượng và bảo hành đầy đủ.</p>
             <div class="modal-size-select">
-                <label>Chon size</label>
+                <label>Chọn size</label>
                 <div class="size-options">
                     <?php foreach (['38','39','40','41','42','43','44'] as $size): ?>
                         <button class="size-btn" onclick="selectSize(this)"><?= $size ?></button>
                     <?php endforeach; ?>
                 </div>
             </div>
-            <button class="btn-add-cart-modal" id="modalAddBtn">Them vao gio hang</button>
+            <button class="btn-add-cart-modal" id="modalAddBtn">Thêm vào giỏ hàng</button>
         </div>
     </div>
 </div>
@@ -243,7 +243,7 @@ function addToCart(productId) {
         body: formData
     }).then(r => r.json()).then(data => {
         if (data.success) {
-            showToast('Da them vao gio hang!');
+            showToast('Đã thêm vào giỏ hàng!');
             loadCart();
             toggleCart(true);
             if (typeof window.updateBadgeGlobal === 'function') window.updateBadgeGlobal(data.cart_count);
@@ -289,7 +289,7 @@ function updateQty(cartId, newQty) {
 }
 
 function formatPrice(price) {
-    return new Intl.NumberFormat('vi-VN').format(price) + ' VND';
+    return new Intl.NumberFormat('vi-VN').format(price) + ' VNĐ';
 }
 
 function updateCartUI(totalItems = 0) {
@@ -302,7 +302,7 @@ function updateCartUI(totalItems = 0) {
     cartTotal.textContent = formatPrice(totalPrice);
 
     if (cart.length === 0) {
-        cartItems.innerHTML = '<div class="cart-empty"><p>Gio hang trong</p></div>';
+        cartItems.innerHTML = '<div class="cart-empty"><p>Giỏ hàng trống</p></div>';
         return;
     }
 
@@ -346,7 +346,7 @@ function showToast(message) {
 
 function checkout() {
     if (cart.length === 0) {
-        showToast('Gio hang trong!');
+        showToast('Giỏ hàng trống!');
         return;
     }
     window.location.href = BASE_URL + 'checkout';

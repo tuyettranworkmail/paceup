@@ -67,6 +67,12 @@ $router->add('/admin/categories/delete', 'Admin\CategoryController', 'delete');
 $router->add('/admin/inventory', 'Admin\InventoryController', 'index');
 $router->add('/admin/inventory/update', 'Admin\InventoryController', 'update');
 $router->add('/admin/inventory/variants/create', 'Admin\InventoryController', 'createVariant');
+$router->add('/admin/coupons', 'Admin\CouponController', 'index');
+$router->add('/admin/coupons/create', 'Admin\CouponController', 'create');
+$router->add('/admin/coupons/store', 'Admin\CouponController', 'store');
+$router->add('/admin/coupons/edit', 'Admin\CouponController', 'edit');
+$router->add('/admin/coupons/update', 'Admin\CouponController', 'update');
+$router->add('/admin/coupons/delete', 'Admin\CouponController', 'delete');
 $router->add('/account', 'AccountController', 'index');
 $router->add('/apply-coupon', 'CheckoutController', 'applyCoupon');
 

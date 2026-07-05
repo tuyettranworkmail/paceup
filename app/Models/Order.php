@@ -147,7 +147,18 @@ class Order extends BaseModel {
     }
 
     // --- ORDER_ITEMS ---
-    public function createOrderItem($data) { return $this->insert('order_items', $data); }
+    public function createOrderItem($data) {
+        return $this->insert('order_items', $data);
+    }
+
+    public function incrementSoldCount($productId, $quantity) {
+        $stmt = $this->db->prepare("UPDATE product SET sold_count = sold_count + :quantity WHERE id = :product_id");
+        return $stmt->execute([
+            'quantity' => $quantity,
+            'product_id' => $productId
+        ]);
+    }
+
     public function getOrderItem($id) { return $this->getById('order_items', $id); }
 
     public function getOrderItems($orderId) {

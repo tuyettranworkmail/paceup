@@ -1,10 +1,12 @@
 <?php
 namespace App\Controller;
 
+use App\Middleware\AuthMiddleware;
 use App\Models\Cart;
 
 class CartController {
     public function index() {
+        AuthMiddleware::requireLogin();
         require __DIR__ . '/../Views/cart.php';
     }
 

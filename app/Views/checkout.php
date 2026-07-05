@@ -178,7 +178,7 @@ function checkoutImageUrl(image) {
     if (image.startsWith('http')) return image;
     if (image.startsWith('public/uploads/')) return BASE_URL + image;
     if (image.startsWith('uploads/')) return BASE_URL + 'public/' + image;
-    return BASE_URL + image;
+    return BASE_URL + 'assets/images/' + image;
 }
 
 function renderCheckoutSummary() {

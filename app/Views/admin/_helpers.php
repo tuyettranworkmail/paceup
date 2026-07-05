@@ -86,7 +86,7 @@ if (!function_exists('adminStart')) {
                     <li><a href="<?= BASE_URL ?>admin/categories" class="<?= $active === 'categories' ? 'active' : '' ?>">Danh mục</a></li>
                     <li><a href="<?= BASE_URL ?>admin?page=orders">Đơn hàng</a></li>
                     <li><a href="<?= BASE_URL ?>admin/inventory" class="<?= $active === 'inventory' ? 'active' : '' ?>">Kho hàng</a></li>
-                    <li><a href="<?= BASE_URL ?>admin?page=coupons">Mã giảm giá</a></li>
+                    <li><a href="<?= BASE_URL ?>admin/coupons" class="<?= $active === 'coupons' ? 'active' : '' ?>">Mã giảm giá</a></li>
                     <li><a href="<?= BASE_URL ?>admin?page=users">Người dùng</a></li>
                     <li><a href="<?= BASE_URL ?>admin?page=settings">Cài đặt</a></li>
                 </ul>
