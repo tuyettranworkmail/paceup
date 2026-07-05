@@ -7,8 +7,20 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
 
 $admin_success = $_SESSION['admin_success'] ?? null;
 unset($_SESSION['admin_success']);
+$admin_error = $_SESSION['admin_error'] ?? null;
+unset($_SESSION['admin_error']);
 
 require_once 'config/db.php';
+
+function adminOrderImagePath($image): string {
+    $image = trim((string)$image);
+    if ($image === '') return 'assets/images/placeholder.jpg';
+    if (str_starts_with($image, 'http')) return $image;
+    if (str_starts_with($image, 'public/uploads/')) return $image;
+    if (str_starts_with($image, 'uploads/')) return 'public/' . $image;
+    if (str_starts_with($image, 'assets/')) return $image;
+    return 'assets/images/' . $image;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -97,11 +109,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
     } elseif ($action === 'update_order_status') {
-        $order_id = $_POST['order_id'] ?? 0;
+        $order_id = (int)($_POST['order_id'] ?? 0);
         $status = $_POST['status'] ?? 'pending';
-        
-        $stmt = $pdo->prepare("UPDATE orders SET status = ? WHERE id = ?");
-        $stmt->execute([$status, $order_id]);
+        $note = trim($_POST['note'] ?? 'Admin updated order status');
+        $changed_by = $_SESSION['user_id'] ?? null;
+        $order_model = new \App\Models\Order();
+        $result = $order_model->updateStatus($order_id, $status, $note, $changed_by);
+        $_SESSION[$result['success'] ? 'admin_success' : 'admin_error'] = $result['message'];
+
         header("Location: ?page=order_detail&id=$order_id&success=1");
         exit;
     } elseif ($action === 'delete_user') {
@@ -166,17 +181,26 @@ if ($page === 'users') {
         $customer = $stmt_user->fetch(PDO::FETCH_ASSOC);
     }
     
-    // Fetch order items - handling the case where product table might just be 'product' or 'products' and variant_id
-    // Based on previous search, 'product_variants' is the table, and 'product' is the main table.
     $stmt_items = $pdo->prepare("
-        SELECT oi.*, p.name as product_name, p.image_url as product_image
+        SELECT
+            oi.*,
+            p.name as product_name,
+            p.slug as product_slug,
+            pv.size,
+            pv.color,
+            pi.image_url as product_image
         FROM order_items oi
         LEFT JOIN product_variants pv ON oi.variant_id = pv.id
         LEFT JOIN product p ON pv.product_id = p.id
+        LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = 1
         WHERE oi.order_id = ?
     ");
     $stmt_items->execute([$id]);
     $order_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
+
+    $stmt_logs = $pdo->prepare("SELECT * FROM order_status_logs WHERE order_id = ? ORDER BY created_at ASC, id ASC");
+    $stmt_logs->execute([$id]);
+    $order_status_logs = $stmt_logs->fetchAll(PDO::FETCH_ASSOC);
     
 } elseif ($page === 'user_detail') {
     $id = $_GET['id'] ?? 0;
@@ -535,6 +559,18 @@ include __DIR__ . '/partials/header.php';
                 <a href="?page=orders" style="font-weight: 600; font-family: var(--font-ui); color: #111; padding: 8px 16px; border: 1px solid #ddd; border-radius: 6px; background: #fff;">&larr; Back</a>
             </div>
 
+            <?php if ($admin_success): ?>
+                <div style="margin-bottom: 1rem; padding: 0.9rem 1rem; background: #e7f6ec; color: #176b35; border-radius: 6px; font-family: var(--font-ui); font-weight: 600;">
+                    <?= htmlspecialchars($admin_success) ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($admin_error): ?>
+                <div style="margin-bottom: 1rem; padding: 0.9rem 1rem; background: #ffebee; color: #b71c1c; border-radius: 6px; font-family: var(--font-ui); font-weight: 600;">
+                    <?= htmlspecialchars($admin_error) ?>
+                </div>
+            <?php endif; ?>
+
             <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2.5rem;">
                 <!-- Left Column -->
                 <div>
@@ -554,9 +590,14 @@ include __DIR__ . '/partials/header.php';
                                 <tr style="border-bottom: 1px solid #f5f5f5;">
                                     <td style="padding: 1rem 0; display: flex; align-items: center; gap: 1rem;">
                                         <div style="width: 50px; height: 50px; border-radius: 6px; overflow: hidden; background: #eee;">
-                                            <img src="<?= BASE_URL . ($item['product_image'] ?? 'assets/images/placeholder.jpg') ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                                            <img src="<?= BASE_URL . htmlspecialchars(adminOrderImagePath($item['product_image'] ?? '')) ?>" style="width: 100%; height: 100%; object-fit: cover;">
                                         </div>
-                                        <span style="font-weight: 600; color: #111;"><?= htmlspecialchars($item['product_name'] ?? 'Sản phẩm') ?></span>
+                                        <div>
+                                            <span style="font-weight: 600; color: #111; display: block;"><?= htmlspecialchars($item['product_name'] ?? 'Sản phẩm') ?></span>
+                                            <?php if (!empty($item['size']) || !empty($item['color'])): ?>
+                                                <span style="font-size: 0.8rem; color: #777;"><?= htmlspecialchars(trim(($item['size'] ?? '') . ' ' . ($item['color'] ?? ''))) ?></span>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                     <td style="color: #666;"><?= number_format($item['price_at_time'], 0, ',', '.') ?> ₫</td>
                                     <td style="color: #111; font-weight: 600;"><?= $item['quantity'] ?></td>
@@ -664,21 +705,25 @@ include __DIR__ . '/partials/header.php';
                         </form>
                     </div>
 
-                    <!-- Payment Status -->
-                    <div style="background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0;">
-                        <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading); font-size: 1.1rem;">Payment Status</h3>
-                        <?php 
-                        $is_paid = ($order['payment_method'] !== 'COD' && $order['status'] !== 'canceled') || $order['status'] === 'delivered';
-                        $p_colors = $is_paid ? ['#E8F5E9', '#388E3C', 'Paid'] : ['#FFF3E0', '#F57C00', 'Unpaid'];
-                        ?>
-                        <div style="margin-bottom: 1rem;">
-                            <span style="background: <?= $p_colors[0] ?>; color: <?= $p_colors[1] ?>; padding: 6px 16px; border-radius: 100px; font-size: 0.85rem; font-weight: 700; font-family: var(--font-ui);"><?= $p_colors[2] ?></span>
-                        </div>
-                        <select disabled style="width: 100%; padding: 0.8rem; margin-bottom: 1rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui); font-weight: 600; outline: none; background: #fafafa; color: #666;">
-                            <option><?= $p_colors[2] ?></option>
-                        </select>
-                        <button disabled style="width: 100%; padding: 0.8rem; background: #ccc; color: #fff; border: none; border-radius: 6px; font-weight: 600; font-family: var(--font-ui); cursor: not-allowed;">Update</button>
+                    <div style="background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0; font-family: var(--font-ui);">
+                        <h3 style="margin-bottom: 1rem; font-family: var(--font-heading); font-size: 1.1rem;">Status History</h3>
+                        <?php if (empty($order_status_logs)): ?>
+                            <div style="color: #888; font-size: 0.9rem;">Chưa có lịch sử cập nhật.</div>
+                        <?php else: ?>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <?php foreach ($order_status_logs as $log): ?>
+                                    <div style="border-left: 3px solid #111; padding-left: 0.75rem;">
+                                        <div style="font-weight: 700; color: #111; text-transform: capitalize;"><?= htmlspecialchars($log['status']) ?></div>
+                                        <?php if (!empty($log['note'])): ?>
+                                            <div style="color: #666; font-size: 0.85rem; margin-top: 0.15rem;"><?= htmlspecialchars($log['note']) ?></div>
+                                        <?php endif; ?>
+                                        <div style="color: #999; font-size: 0.8rem; margin-top: 0.15rem;"><?= date('d/m/Y H:i', strtotime($log['created_at'])) ?></div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
+
                 </div>
             </div>
 

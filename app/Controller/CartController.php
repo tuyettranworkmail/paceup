@@ -24,7 +24,7 @@ class CartController {
         }
 
         $productId = (int)($_POST['product_id'] ?? 0);
-        $quantity = (int)($_POST['qty'] ?? 1);
+        $quantity = max(1, (int)($_POST['qty'] ?? 1));
 
         if ($productId <= 0) {
             echo json_encode(['success' => false, 'message' => 'Sản phẩm không hợp lệ']);
@@ -32,27 +32,35 @@ class CartController {
         }
 
         list($userId, $sessionId) = $this->getCartIdentifiers();
-        $cartModel = new Cart();
+        try {
+            $cartModel = new Cart();
 
-        // Check if item exists
-        $existing = $cartModel->checkExists($userId, $sessionId, $productId);
+            // Check if item exists
+            $existing = $cartModel->checkExists($userId, $sessionId, $productId);
 
-        if ($existing) {
-            $cartModel->updateCartQuantity($existing['id'], $existing['quantity'] + $quantity);
-        } else {
-            $cartModel->createCartItem([
-                'user_id' => $userId,
-                'session_id' => $userId ? null : $sessionId,
-                'product_id' => $productId,
-                'quantity' => $quantity
+            if ($existing) {
+                $cartModel->updateCartQuantity($existing['id'], $existing['quantity'] + $quantity);
+            } else {
+                $cartModel->createCartItem([
+                    'user_id' => $userId,
+                    'session_id' => $userId ? null : $sessionId,
+                    'product_id' => $productId,
+                    'quantity' => $quantity
+                ]);
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Đã thêm vào giỏ hàng',
+                'cart_count' => $cartModel->countCartItems($userId, $sessionId)
+            ]);
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Không thêm được vào giỏ: ' . $e->getMessage()
             ]);
         }
-
-        echo json_encode([
-            'success' => true, 
-            'message' => 'Đã thêm vào giỏ hàng',
-            'cart_count' => $cartModel->countCartItems($userId, $sessionId)
-        ]);
     }
 
     public function update() {

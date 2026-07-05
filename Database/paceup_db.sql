@@ -299,22 +299,12 @@ INSERT INTO `orders` (`id`, `order_code`, `user_id`, `total_amount`, `coupon_id`
 --
 DELIMITER $$
 CREATE TRIGGER `trg_after_order_canceled` AFTER UPDATE ON `orders` FOR EACH ROW BEGIN
-    -- Kiểm tra nếu trạng thái MỚI là canceled và trạng thái CŨ không phải là canceled
-    IF NEW.status = 'canceled' AND OLD.status != 'canceled' THEN
+    -- Chỉ hoàn kho nếu đơn đã từng được xác nhận/trừ kho trước đó
+    IF NEW.status = 'canceled' AND OLD.status IN ('confirmed', 'shipping', 'delivered') THEN
         INSERT INTO Inventory_logs (variant_id, quantity_changed, reason)
         SELECT variant_id, quantity, CONCAT('Hoàn trả kho do hủy đơn hàng ID: ', NEW.id)
         FROM Order_items
         WHERE order_id = NEW.id;
-    END IF;
-END
-$$
-DELIMITER ;
-DELIMITER $$
-CREATE TRIGGER `trg_after_order_status_update` AFTER UPDATE ON `orders` FOR EACH ROW BEGIN
-    -- Chỉ ghi log nếu trạng thái thực sự bị thay đổi
-    IF OLD.status != NEW.status THEN
-        INSERT INTO Order_status_logs (order_id, status, created_at)
-        VALUES (NEW.id, NEW.status, CURRENT_TIMESTAMP);
     END IF;
 END
 $$
@@ -375,15 +365,8 @@ INSERT INTO `order_items` (`id`, `order_id`, `product_id`, `quantity`, `price_at
 (9, 7, NULL, 1, 3400000.00);
 
 --
--- Bẫy `order_items`
---
-DELIMITER $$
-CREATE TRIGGER `trg_after_insert_order_item` AFTER INSERT ON `order_items` FOR EACH ROW BEGIN
-    INSERT INTO Inventory_logs (variant_id, quantity_changed, reason)
-    VALUES (NEW.variant_id, -NEW.quantity, CONCAT('Khách mua hàng, Order ID: ', NEW.order_id));
-END
-$$
-DELIMITER ;
+-- Kho hàng được trừ khi admin chuyển đơn từ pending sang confirmed.
+-- Không trừ kho ngay lúc insert order_items.
 
 -- --------------------------------------------------------
 
@@ -396,6 +379,7 @@ CREATE TABLE `order_status_logs` (
   `order_id` int(11) DEFAULT NULL,
   `status` varchar(50) NOT NULL,
   `changed_by` int(11) DEFAULT NULL,
+  `note` text DEFAULT NULL,
   `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -1050,7 +1034,8 @@ ALTER TABLE `wishlist`
 -- Các ràng buộc cho bảng `cart`
 --
 ALTER TABLE `cart`
-  ADD CONSTRAINT `cart_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `cart_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `cart_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE;
 
 --
 -- Các ràng buộc cho bảng `inventory_logs`

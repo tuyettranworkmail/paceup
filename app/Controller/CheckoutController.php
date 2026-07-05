@@ -2,6 +2,7 @@
 namespace App\Controller;
 
 use App\Models\Coupons;
+use App\Models\Database;
 use App\Models\Order;
 
 class CheckoutController {
@@ -51,10 +52,33 @@ class CheckoutController {
         }
 
         $totalAmount = 0;
+        $preparedItems = [];
+        $db = Database::getInstance()->getConnection();
+
         foreach ($items as $item) {
             $quantity = max(0, (int) ($item['quantity'] ?? 0));
             $price = max(0, (float) ($item['price'] ?? 0));
             $totalAmount += $quantity * $price;
+
+            if ($quantity <= 0 || $price < 0) {
+                continue;
+            }
+
+            $variantId = $this->resolveVariantId($db, $item, $quantity);
+            if (!$variantId) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Sản phẩm "' . ($item['name'] ?? 'trong giỏ hàng') . '" chưa có biến thể hoặc không đủ tồn kho.'
+                ]);
+                return;
+            }
+
+            $preparedItems[] = [
+                'variant_id' => $variantId,
+                'quantity' => $quantity,
+                'price' => $price
+            ];
         }
 
         if ($totalAmount <= 0) {
@@ -65,7 +89,7 @@ class CheckoutController {
 
         $finalAmount = max(0, $totalAmount - $discount);
         $orderModel = new Order();
-        $orderId = $orderModel->createOrder([
+        $result = $orderModel->placeOrder([
             'order_code' => $orderModel->generateUniqueOrderCode(),
             'user_id' => $_SESSION['user_id'],
             'total_amount' => $totalAmount,
@@ -76,28 +100,45 @@ class CheckoutController {
             'shipping_address' => $shippingAddress,
             'shipping_email' => $shippingEmail !== '' ? $shippingEmail : null,
             'status' => 'pending'
-        ]);
+        ], $preparedItems);
 
-        foreach ($items as $item) {
-            $quantity = max(0, (int) ($item['quantity'] ?? 0));
-            $price = max(0, (float) ($item['price'] ?? 0));
-
-            if ($quantity > 0 && $price >= 0) {
-                $orderModel->createOrderItem([
-                    'order_id' => $orderId,
-                    'product_id' => $item['product_id'] ?? null,
-                    'quantity' => $quantity,
-                    'price_at_time' => $price
-                ]);
-                if (isset($item['product_id'])) {
-                    $orderModel->incrementSoldCount($item['product_id'], $quantity);
-                }
-            }
+        if (!$result['success']) {
+            http_response_code(400);
+            echo json_encode($result);
+            return;
         }
         
         $cartModel->clearCart($_SESSION['user_id']);
 
-        echo json_encode(['success' => true, 'order_id' => $orderId]);
+        echo json_encode(['success' => true, 'order_id' => $result['order_id']]);
+    }
+
+    private function resolveVariantId(\PDO $db, array $item, int $quantity): ?int {
+        $variantId = (int) ($item['variant_id'] ?? 0);
+        if ($variantId > 0) {
+            return $variantId;
+        }
+
+        $productId = (int) ($item['product_id'] ?? 0);
+        if ($productId <= 0) {
+            return null;
+        }
+
+        $stmt = $db->prepare("
+            SELECT id
+            FROM product_variants
+            WHERE product_id = :product_id
+              AND stock_quantity >= :quantity
+            ORDER BY stock_quantity DESC, id ASC
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'product_id' => $productId,
+            'quantity' => $quantity
+        ]);
+
+        $id = $stmt->fetchColumn();
+        return $id ? (int) $id : null;
     }
 
     public function applyCoupon() {

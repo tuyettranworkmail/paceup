@@ -17,9 +17,23 @@ function productDetailType($product): string {
 
     return $type;
 }
-?>
 
-<?php // Controller provides $product and $related ?>
+function productDetailHasBrokenText($text): bool {
+    $text = (string)$text;
+    return strpos($text, '??') !== false || strpos($text, '�') !== false;
+}
+
+function productDetailDescription($product): string {
+    $description = trim((string)($product['description'] ?? ''));
+    $category = trim((string)($product['category'] ?? ''));
+
+    if ($description === '' || productDetailHasBrokenText($description)) {
+        return trim($product['name'] . ' chính hãng Nike. Sản phẩm thuộc dòng ' . $category . ', cam kết chất lượng 100% và bảo hành đầy đủ.');
+    }
+
+    return $description;
+}
+?>
 
 <style>
 .product-detail-page { max-width: 1200px; margin: 2rem auto; padding: 0 2rem; font-family: var(--font-body); }
@@ -117,7 +131,7 @@ function productDetailType($product): string {
             </div>
 
             <div class="pd-desc">
-                <?= nl2br(htmlspecialchars($product['description'] ?? $product['name'] . ' chính hãng Nike. Sản phẩm thuộc dòng ' . $product['category'] . ', cam kết chất lượng 100% và bảo hành đầy đủ.')) ?>
+                <?= nl2br(htmlspecialchars(productDetailDescription($product))) ?>
             </div>
 
             <ul class="pd-details">

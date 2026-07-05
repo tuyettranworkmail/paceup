@@ -174,10 +174,13 @@ function formatPrice(price) {
 }
 
 function checkoutImageUrl(image) {
-    if (!image) return '';
+    if (!image) return BASE_URL + 'assets/images/placeholder.jpg';
     if (image.startsWith('http')) return image;
+    if (image.startsWith(BASE_URL)) return image;
+    if (image.startsWith('/')) return image;
     if (image.startsWith('public/uploads/')) return BASE_URL + image;
     if (image.startsWith('uploads/')) return BASE_URL + 'public/' + image;
+    if (image.startsWith('assets/')) return BASE_URL + image;
     return BASE_URL + 'assets/images/' + image;
 }
 
@@ -191,7 +194,7 @@ function renderCheckoutSummary() {
         const imgUrl = checkoutImageUrl(item.image);
         return `
             <div class="summary-item" style="position: relative;">
-                <img src="${imgUrl}" alt="${item.name}" onerror="this.src='${item.image}'">
+                <img src="${imgUrl}" alt="${item.name}" onerror="this.onerror=null; this.src='${BASE_URL}assets/images/placeholder.jpg'">
                 <div class="summary-item-info">
                     <div class="summary-item-name">${item.name}</div>
                     <div style="display:flex; align-items:center; gap:10px; margin-top:5px;">
