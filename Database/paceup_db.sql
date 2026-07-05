@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th6 25, 2026 lúc 04:28 PM
+-- Thời gian đã tạo: Th7 05, 2026 lúc 10:31 AM
 -- Phiên bản máy phục vụ: 10.4.32-MariaDB
--- Phiên bản PHP: 8.0.30
+-- Phiên bản PHP: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -44,7 +44,7 @@ CREATE TABLE `cart` (
   `id` int(11) NOT NULL,
   `user_id` int(11) DEFAULT NULL COMMENT 'Dành cho Khách hàng đã đăng nhập',
   `session_id` varchar(100) DEFAULT NULL COMMENT 'Dành cho Guest',
-  `variant_id` int(11) DEFAULT NULL,
+  `product_id` int(11) DEFAULT NULL,
   `quantity` int(11) DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -137,6 +137,15 @@ CREATE TABLE `inventory_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
+-- Đang đổ dữ liệu cho bảng `inventory_logs`
+--
+
+INSERT INTO `inventory_logs` (`id`, `variant_id`, `quantity_changed`, `reason`) VALUES
+(1, NULL, -2, 'Khách mua hàng, Order ID: 1'),
+(2, NULL, -1, 'Khách mua hàng, Order ID: 2'),
+(3, NULL, -2, 'Khách mua hàng, Order ID: 3');
+
+--
 -- Bẫy `inventory_logs`
 --
 DELIMITER $$
@@ -161,6 +170,54 @@ CREATE TABLE `logs` (
   `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Đang đổ dữ liệu cho bảng `logs`
+--
+
+INSERT INTO `logs` (`id`, `user_id`, `action`, `created_at`) VALUES
+(1, 1, 'logout | Đăng xuất', '2026-07-02 18:05:15'),
+(2, 1, 'login | Đăng nhập thành công', '2026-07-02 18:08:04'),
+(3, 1, 'logout | Đăng xuất', '2026-07-02 18:13:47'),
+(4, 1, 'login | Đăng nhập thành công', '2026-07-02 18:13:54'),
+(5, 1, 'logout | Đăng xuất', '2026-07-02 18:13:58'),
+(6, 1, 'login | Đăng nhập thành công', '2026-07-02 18:14:14'),
+(7, 1, 'logout | Đăng xuất', '2026-07-02 18:14:27'),
+(8, 2, 'login | Đăng nhập thành công', '2026-07-02 18:14:35'),
+(9, 2, 'logout | Đăng xuất', '2026-07-02 18:14:53'),
+(10, 1, 'login | Đăng nhập thành công', '2026-07-02 18:14:56'),
+(11, 1, 'logout | Đăng xuất', '2026-07-02 18:15:45'),
+(12, NULL, 'register | Đăng ký tài khoản mới', '2026-07-02 19:03:17'),
+(13, 1, 'login | Đăng nhập thành công', '2026-07-02 19:03:27'),
+(14, 1, 'logout | Đăng xuất', '2026-07-02 19:03:31'),
+(15, NULL, 'login | Đăng nhập thành công', '2026-07-02 19:03:42'),
+(16, NULL, 'logout | Đăng xuất', '2026-07-02 19:48:54'),
+(17, 1, 'login | Đăng nhập thành công', '2026-07-02 19:48:57'),
+(18, 1, 'logout | Đăng xuất', '2026-07-02 20:03:29'),
+(19, 2, 'login | Đăng nhập thành công', '2026-07-02 20:04:47'),
+(20, 2, 'logout | Đăng xuất', '2026-07-02 20:06:00'),
+(21, 1, 'login | Đăng nhập thành công', '2026-07-02 20:06:06'),
+(22, 1, 'logout | Đăng xuất', '2026-07-02 20:06:09'),
+(23, 2, 'login | Đăng nhập thành công', '2026-07-02 20:06:51'),
+(24, 2, 'logout | Đăng xuất', '2026-07-02 20:06:54'),
+(25, 2, 'login | Đăng nhập thành công', '2026-07-02 20:10:46'),
+(26, 2, 'upload_avatar | Cap nhat anh dai dien', '2026-07-02 20:11:37'),
+(27, 2, 'logout | Đăng xuất', '2026-07-02 20:14:37'),
+(28, 1, 'login | Đăng nhập thành công', '2026-07-02 20:14:39'),
+(29, 1, 'logout | Đăng xuất', '2026-07-02 20:15:16'),
+(30, 2, 'login | Đăng nhập thành công', '2026-07-02 20:15:22'),
+(31, 2, 'logout | Đăng xuất', '2026-07-02 20:19:30'),
+(32, 1, 'login | Đăng nhập thành công', '2026-07-02 20:19:37'),
+(33, 1, 'logout | Đăng xuất', '2026-07-02 20:20:34'),
+(34, 2, 'login | Đăng nhập thành công', '2026-07-02 20:20:46'),
+(35, 2, 'upload_avatar | Cap nhat anh dai dien', '2026-07-02 20:22:50'),
+(36, 2, 'logout | Đăng xuất', '2026-07-02 20:25:24'),
+(37, 1, 'login | Đăng nhập thành công', '2026-07-02 20:25:26'),
+(38, 1, 'logout | Đăng xuất', '2026-07-02 20:30:32'),
+(39, 1, 'login | Đăng nhập thành công', '2026-07-02 20:31:47'),
+(40, 1, 'logout | Đăng xuất', '2026-07-02 20:31:57'),
+(41, 1, 'login | Đăng nhập thành công', '2026-07-03 09:55:44'),
+(42, 1, 'login | Đăng nhập thành công', '2026-07-04 10:32:31');
+
 -- --------------------------------------------------------
 
 --
@@ -181,6 +238,15 @@ CREATE TABLE `orders` (
   `created_at` datetime DEFAULT current_timestamp(),
   `shipping_email` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `orders`
+--
+
+INSERT INTO `orders` (`id`, `order_code`, `user_id`, `total_amount`, `coupon_id`, `final_amount`, `shipping_name`, `shipping_phone`, `shipping_address`, `status`, `created_at`, `shipping_email`) VALUES
+(1, 'ORD-20260704-79C103', 1, 6800000.00, NULL, 6800000.00, '_06 Deeta', '12345', '123 qdad', 'pending', '2026-07-04 13:02:33', 'dinhthuyanha@gmail.com'),
+(2, 'ORD-20260704-D74553', 2, 3300000.00, NULL, 3300000.00, '1231', '12345', '123 qdad', 'pending', '2026-07-04 13:14:11', 'dinhthuyanha@gmail.com'),
+(3, 'ORD-20260704-813DB8', 5, 9200000.00, NULL, 9200000.00, '_06 Deeta', '0123456789', '123 qdad', 'pending', '2026-07-04 20:19:32', 'dinhthuyanha@gmail.com');
 
 --
 -- Bẫy `orders`
@@ -246,6 +312,15 @@ CREATE TABLE `order_items` (
   `quantity` int(11) NOT NULL,
   `price_at_time` decimal(10,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `order_items`
+--
+
+INSERT INTO `order_items` (`id`, `order_id`, `variant_id`, `quantity`, `price_at_time`) VALUES
+(1, 1, NULL, 2, 3400000.00),
+(2, 2, NULL, 1, 3300000.00),
+(3, 3, NULL, 2, 4600000.00);
 
 --
 -- Bẫy `order_items`
@@ -504,6 +579,7 @@ CREATE TABLE `setting` (
 CREATE TABLE `user` (
   `id` int(11) NOT NULL,
   `full_name` varchar(100) NOT NULL,
+  `display_name` varchar(100) DEFAULT NULL,
   `email` varchar(100) NOT NULL,
   `phone` varchar(20) DEFAULT NULL,
   `avatar` varchar(255) DEFAULT NULL,
@@ -517,9 +593,12 @@ CREATE TABLE `user` (
 -- Đang đổ dữ liệu cho bảng `user`
 --
 
-INSERT INTO `user` (`id`, `full_name`, `email`, `phone`, `avatar`, `password`, `role`, `status`, `created_at`) VALUES
-(1, 'Admin', 'admin@123', NULL, NULL, '$2y$10$GJBLTR.QSclTb61ag6YPr.ZYy.YrkTmLzo9/KV8uwcWpoMAf4B1iK', 'admin', 1, '2026-06-25 07:35:38'),
-(2, 'User', 'user@123', NULL, NULL, '$2y$10$r4tvh/xcBu6cKLMAhsXMRuqjyUjwclkeGNRbaG/7LAnPBA2waxIRW', 'user', 1, '2026-06-25 07:35:38');
+INSERT INTO `user` (`id`, `full_name`, `display_name`, `email`, `phone`, `avatar`, `password`, `role`, `status`, `created_at`) VALUES
+(1, 'Admin', 'Test1234', 'admin@123', '0123456789', NULL, '$2y$10$Mpt6opJmon7cLQakVyk/e.4zNBi84IVHBu8dxHItssNnmW7Be.YNy', 'admin', 1, '2026-06-25 07:35:38'),
+(2, 'Deeta', 'Ăn thịt người bán giày', 'user@123', '12345', 'public/uploads/avatars/1783138213_6a4887a573454.png', '$2y$10$0IO910WayVRynf5DZvjX2uTP1vqCHudiMNMm9Oo1jhS6CiLFAtFwW', 'user', 1, '2026-06-25 07:35:38'),
+(4, 'Điu', 'Ăn thịt thùi', 'user0202@gmail.com', '0123456789', NULL, '$2y$10$i0Yyx/TSELV4lWYMZ08mmOS2lHtxc/JKEQZ//myFWJFeZr3xLhSfu', 'user', 1, '2026-07-04 13:48:22'),
+(5, '_06 Deeta', NULL, 'dinhthuyanha@gmail.com', '0234567891', NULL, '$2y$10$ur1sJMCTE9b5y/BuNQ/fLuJneRI1gzNJcf9slM2Vlx/xX5FkaZBLi', 'user', 1, '2026-07-04 20:17:54'),
+(6, 'Admin_number1', 'Ạc min', 'admin1@gmail.com', '0123123', NULL, '$2y$10$Ges0kPKvLlg/YfEeCJ3IBupJQIU69bOdMTqGvFFIr8lvJ8QgkIbB.', 'admin', 1, '2026-07-05 10:21:36');
 
 -- --------------------------------------------------------
 
@@ -534,6 +613,16 @@ CREATE TABLE `user_addresses` (
   `ward_district_city` varchar(255) NOT NULL,
   `is_default` tinyint(4) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `user_addresses`
+--
+
+INSERT INTO `user_addresses` (`id`, `user_id`, `address_line`, `ward_district_city`, `is_default`) VALUES
+(1, 2, '123312 AD', 'HCM', 0),
+(2, 2, '3234 vptjad', 'HCM', 1),
+(3, 1, '3234 vptjad', 'HCM', 0),
+(4, 1, '123312 AD', 'HCM', 1);
 
 -- --------------------------------------------------------
 
@@ -768,25 +857,25 @@ ALTER TABLE `daily_revenue_reports`
 -- AUTO_INCREMENT cho bảng `inventory_logs`
 --
 ALTER TABLE `inventory_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT cho bảng `logs`
 --
 ALTER TABLE `logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 
 --
 -- AUTO_INCREMENT cho bảng `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT cho bảng `order_items`
 --
 ALTER TABLE `order_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT cho bảng `order_status_logs`
@@ -858,13 +947,13 @@ ALTER TABLE `setting`
 -- AUTO_INCREMENT cho bảng `user`
 --
 ALTER TABLE `user`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT cho bảng `user_addresses`
 --
 ALTER TABLE `user_addresses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT cho bảng `wishlist`

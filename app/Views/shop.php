@@ -95,7 +95,7 @@ function productDisplayType($product): string {
                                 <img src="<?= BASE_URL . htmlspecialchars($imagePath) ?>" alt="<?= htmlspecialchars($product['name']) ?>">
                             <?php endif; ?>
                             <div class="product-actions" onclick="event.preventDefault(); event.stopPropagation()">
-                                <button class="btn-add-cart" onclick="addToCart('<?= htmlspecialchars(addslashes($product['name'])) ?>', <?= (float)$product['price'] ?>, '<?= htmlspecialchars($imagePath) ?>')">
+                                <button class="btn-add-cart" onclick="addToCart(<?= (int)$product['id'] ?>)">
                                     Them vao gio
                                 </button>
                                 <button class="btn-quick-view" onclick="openQuickView(<?= $index ?>)">Xem nhanh</button>
@@ -162,7 +162,7 @@ function productDisplayType($product): string {
 
 <script>
 const productsData = <?= json_encode(array_values($products), JSON_UNESCAPED_UNICODE) ?>;
-let cart = JSON.parse(localStorage.getItem('paceup_cart')) || [];
+let cart = [];
 
 function productImagePath(image) {
     if (!image) return '';
@@ -196,7 +196,7 @@ function openQuickView(index) {
     document.getElementById('modalPrice').textContent = formatPrice(product.price);
 
     document.getElementById('modalAddBtn').onclick = () => {
-        addToCart(product.name, product.price, productImagePath(product.image || ''));
+        addToCart(product.id);
         closeQuickView();
     };
 
@@ -214,70 +214,115 @@ function selectSize(btn) {
     btn.classList.add('selected');
 }
 
-function saveCart() {
-    localStorage.setItem('paceup_cart', JSON.stringify(cart));
-    updateCartUI();
+function loadCart() {
+    fetch(BASE_URL + 'cart/get')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                cart = data.items.map(item => ({
+                    cart_id: item.id,
+                    product_id: item.product_id,
+                    name: item.name,
+                    price: parseFloat(item.price),
+                    qty: parseInt(item.quantity),
+                    image: item.image_url
+                }));
+                updateCartUI(data.cart_count);
+            }
+        });
 }
 
-function addToCart(name, price, image) {
-    const existing = cart.find(item => item.name === name);
-    if (existing) existing.qty += 1;
-    else cart.push({ name, price, image, qty: 1 });
-    saveCart();
-    showToast('Da them vao gio hang!');
-    toggleCart(true);
+function addToCart(productId) {
+    const formData = new FormData();
+    formData.append('product_id', productId);
+    formData.append('qty', 1);
+
+    fetch(BASE_URL + 'cart/add', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            showToast('Da them vao gio hang!');
+            loadCart();
+            toggleCart(true);
+            if (typeof window.updateBadgeGlobal === 'function') window.updateBadgeGlobal(data.cart_count);
+        } else {
+            showToast(data.message || 'Lỗi!');
+        }
+    });
 }
 
-function removeFromCart(index) {
-    cart.splice(index, 1);
-    saveCart();
+function removeFromCart(cartId) {
+    const formData = new FormData();
+    formData.append('cart_id', cartId);
+    fetch(BASE_URL + 'cart/remove', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            loadCart();
+            if (typeof window.updateBadgeGlobal === 'function') window.updateBadgeGlobal(data.cart_count);
+        }
+    });
 }
 
-function updateQty(index, delta) {
-    cart[index].qty += delta;
-    if (cart[index].qty <= 0) cart.splice(index, 1);
-    saveCart();
+function updateQty(cartId, newQty) {
+    if (newQty < 1) {
+        removeFromCart(cartId);
+        return;
+    }
+    const formData = new FormData();
+    formData.append('cart_id', cartId);
+    formData.append('qty', newQty);
+    fetch(BASE_URL + 'cart/update', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            loadCart();
+            if (typeof window.updateBadgeGlobal === 'function') window.updateBadgeGlobal(data.cart_count);
+        }
+    });
 }
 
 function formatPrice(price) {
     return new Intl.NumberFormat('vi-VN').format(price) + ' VND';
 }
 
-function updateCartUI() {
+function updateCartUI(totalItems = 0) {
     const cartItems = document.getElementById('cartItems');
     const cartCount = document.getElementById('cartCount');
     const cartTotal = document.getElementById('cartTotal');
-    const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
     const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
     cartCount.textContent = totalItems;
     cartTotal.textContent = formatPrice(totalPrice);
-
-    document.querySelectorAll('.cart-badge').forEach(b => {
-        b.textContent = totalItems;
-        b.style.display = totalItems > 0 ? 'flex' : 'none';
-    });
 
     if (cart.length === 0) {
         cartItems.innerHTML = '<div class="cart-empty"><p>Gio hang trong</p></div>';
         return;
     }
 
-    cartItems.innerHTML = cart.map((item, i) => `
+    cartItems.innerHTML = cart.map(item => {
+        const imgUrl = item.image ? (item.image.startsWith('http') ? item.image : (item.image.startsWith('public/uploads/') ? BASE_URL + item.image : BASE_URL + (item.image.startsWith('uploads/') ? 'public/' : 'assets/images/') + item.image)) : '';
+        return `
         <div class="cart-item">
-            <img src="${assetUrl(item.image)}" alt="${item.name}">
+            <img src="${imgUrl}" alt="${item.name}">
             <div class="cart-item-info">
                 <div class="item-name">${item.name}</div>
                 <div class="item-price">${formatPrice(item.price)}</div>
                 <div class="cart-item-qty">
-                    <button onclick="updateQty(${i}, -1)">-</button>
+                    <button onclick="updateQty(${item.cart_id}, ${item.qty - 1})">-</button>
                     <span>${item.qty}</span>
-                    <button onclick="updateQty(${i}, 1)">+</button>
+                    <button onclick="updateQty(${item.cart_id}, ${item.qty + 1})">+</button>
                 </div>
             </div>
-            <button class="cart-item-remove" onclick="removeFromCart(${i})">x</button>
+            <button class="cart-item-remove" onclick="removeFromCart(${item.cart_id})">x</button>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function toggleCart(forceOpen) {
@@ -316,6 +361,9 @@ document.addEventListener('DOMContentLoaded', () => {
             toggleCart();
         });
     }
+});
+document.addEventListener('DOMContentLoaded', () => {
+    loadCart();
 });
 </script>
 

@@ -27,7 +27,9 @@ class CheckoutController {
         }
 
         $input = json_decode(file_get_contents('php://input'), true);
-        $items = $input['items'] ?? [];
+        
+        $cartModel = new \App\Models\Cart();
+        $items = $cartModel->getCartByUserId($_SESSION['user_id']);
 
         if (empty($items)) {
             http_response_code(400);
@@ -50,7 +52,7 @@ class CheckoutController {
 
         $totalAmount = 0;
         foreach ($items as $item) {
-            $quantity = max(0, (int) ($item['qty'] ?? 0));
+            $quantity = max(0, (int) ($item['quantity'] ?? 0));
             $price = max(0, (float) ($item['price'] ?? 0));
             $totalAmount += $quantity * $price;
         }
@@ -77,18 +79,20 @@ class CheckoutController {
         ]);
 
         foreach ($items as $item) {
-            $quantity = max(0, (int) ($item['qty'] ?? 0));
+            $quantity = max(0, (int) ($item['quantity'] ?? 0));
             $price = max(0, (float) ($item['price'] ?? 0));
 
             if ($quantity > 0 && $price >= 0) {
                 $orderModel->createOrderItem([
                     'order_id' => $orderId,
-                    'variant_id' => null,
+                    'variant_id' => null, // or $item['product_id'] if we store it
                     'quantity' => $quantity,
                     'price_at_time' => $price
                 ]);
             }
         }
+        
+        $cartModel->clearCart($_SESSION['user_id']);
 
         echo json_encode(['success' => true, 'order_id' => $orderId]);
     }
