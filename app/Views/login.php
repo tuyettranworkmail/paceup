@@ -1,8 +1,12 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once 'config/db.php';
 
-$error = '';
+$error = $_SESSION['flash']['error'] ?? '';
+unset($_SESSION['flash']['error']);
+$success = isset($_GET['registered']) ? 'Đăng ký thành công, vui lòng đăng nhập.' : '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -52,6 +56,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php if ($error): ?>
                 <div style="background: #fee; color: #c00; padding: 10px; border-radius: 8px; margin-bottom: 1rem; text-align: center; font-size: 14px;">
                     <?= htmlspecialchars($error) ?>
+                </div>
+            <?php endif; ?>
+            <?php if ($success): ?>
+                <div style="background: #efe; color: #070; padding: 10px; border-radius: 8px; margin-bottom: 1rem; text-align: center; font-size: 14px;">
+                    <?= htmlspecialchars($success) ?>
                 </div>
             <?php endif; ?>
             

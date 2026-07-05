@@ -9,6 +9,7 @@ if ($gender === 'women') $genderLabel = 'San pham Nu';
 $category = $_GET['category'] ?? 'all';
 $sort = $_GET['sort'] ?? 'default';
 $priceRange = $_GET['price'] ?? 'all';
+$keyword = trim($_GET['q'] ?? '');
 
 function shopUrl(array $overrides): string {
     $params = array_merge($_GET, $overrides);
@@ -31,6 +32,9 @@ function productAssetPath($image): string {
                     <input type="hidden" name="gender" value="<?= htmlspecialchars($gender) ?>">
                     <input type="hidden" name="category" value="<?= htmlspecialchars($category) ?>">
                     <input type="hidden" name="price" value="<?= htmlspecialchars($priceRange) ?>">
+                    <?php if ($keyword !== ''): ?>
+                        <input type="hidden" name="q" value="<?= htmlspecialchars($keyword) ?>">
+                    <?php endif; ?>
                     <label for="sortSel">Sap xep</label>
                     <select name="sort" id="sortSel" onchange="this.form.submit()">
                         <option value="default" <?= $sort === 'default' ? 'selected' : '' ?>>Mac dinh</option>
@@ -94,7 +98,9 @@ function productAssetPath($image): string {
                     </div>
                 <?php endforeach; ?>
                 <?php if (empty($products)): ?>
-                    <p class="shop-empty">Khong co san pham phu hop bo loc.</p>
+                    <p class="shop-empty">
+                        <?= $keyword !== '' ? 'No results found for "' . htmlspecialchars($keyword) . '".' : 'Khong co san pham phu hop bo loc.' ?>
+                    </p>
                 <?php endif; ?>
             </div>
         </div>

@@ -1,33 +1,8 @@
 <?php
-session_start();
-require_once 'config/db.php';
-
-$error = '';
-$success = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $full_name = trim($_POST['full_name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $phone = trim($_POST['phone'] ?? '');
-    $password = $_POST['password'] ?? '';
-    $confirm = $_POST['confirm_password'] ?? '';
-
-    if ($password !== $confirm) {
-        $error = 'Mật khẩu xác nhận không khớp.';
-    } elseif (strlen($password) < 6) {
-        $error = 'Mật khẩu phải có ít nhất 6 ký tự.';
-    } else {
-        $stmt = $pdo->prepare("SELECT id FROM user WHERE email = ?");
-        $stmt->execute([$email]);
-        if ($stmt->fetch()) {
-            $error = 'Email đã được sử dụng.';
-        } else {
-            $hash = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("INSERT INTO user (full_name, email, phone, password, role) VALUES (?, ?, ?, ?, 'user')");
-            $stmt->execute([$full_name, $email, $phone, $hash]);
-            $success = 'Đăng ký thành công! Bạn có thể đăng nhập ngay.';
-        }
-    }
-}
+$error = $_SESSION['flash']['error'] ?? '';
+unset($_SESSION['flash']['error']);
+$old = $_SESSION['register_old'] ?? [];
+unset($_SESSION['register_old']);
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -55,21 +30,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?= htmlspecialchars($error) ?>
                 </div>
             <?php endif; ?>
-            <?php if ($success): ?>
-                <div style="background: #efe; color: #070; padding: 10px; border-radius: 8px; margin-bottom: 1rem; text-align: center; font-size: 14px;">
-                    <?= htmlspecialchars($success) ?>
-                </div>
-            <?php endif; ?>
-
             <form action="<?= BASE_URL ?>register" method="POST">
                 <div class="form-group">
-                    <input type="text" name="full_name" placeholder="Họ và tên" required value="<?= htmlspecialchars($_POST['full_name'] ?? '') ?>">
+                    <input type="text" name="full_name" placeholder="Họ và tên" required value="<?= htmlspecialchars($old['full_name'] ?? '') ?>">
                 </div>
                 <div class="form-group">
-                    <input type="text" name="email" placeholder="Email" required value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+                    <input type="text" name="email" placeholder="Email" required value="<?= htmlspecialchars($old['email'] ?? '') ?>">
                 </div>
                 <div class="form-group">
-                    <input type="text" name="phone" placeholder="Số điện thoại" value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>">
+                    <input type="tel" name="phone" placeholder="Số điện thoại" maxlength="20" value="<?= htmlspecialchars($old['phone'] ?? '') ?>">
                 </div>
                 <div class="form-group">
                     <input type="password" name="password" placeholder="Mật khẩu" required>

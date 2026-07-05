@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // Define Base URL to handle subdirectories in XAMPP
 $baseDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
@@ -26,11 +28,23 @@ $router->add('/product', 'ProductController', 'show');
 $router->add('/cart', 'CartController', 'index');
 $router->add('/wishlist', 'WishlistController', 'index');
 $router->add('/checkout', 'CheckoutController', 'index');
+$router->add('/checkout/place-order', 'CheckoutController', 'placeOrder');
 $router->add('/checkout-success', 'CheckoutController', 'success');
 $router->add('/login', 'AuthController', 'login');
 $router->add('/register', 'AuthController', 'register');
 $router->add('/logout', 'AuthController', 'logout');
+$router->add('/change-password', 'AuthController', 'changePassword');
+$router->add('/forgot-password', 'AuthController', 'forgotPassword');
+$router->add('/verify-otp', 'AuthController', 'verifyOtp');
+$router->add('/reset-password', 'AuthController', 'resetPassword');
+$router->add('/account', 'User/ProfileController', 'index');
+$router->add('/account/update', 'User/ProfileController', 'update');
+$router->add('/account/avatar', 'User/ProfileController', 'uploadAvatar');
+$router->add('/account/addresses/add', 'User/ProfileController', 'addAddress');
+$router->add('/account/addresses/default', 'User/ProfileController', 'setDefaultAddress');
+$router->add('/account/addresses/delete', 'User/ProfileController', 'deleteAddress');
 $router->add('/admin', 'AdminController', 'index');
+$router->add('/admin/users/create', 'Admin\UserController', 'create');
 $router->add('/admin/products', 'Admin\ProductController', 'index');
 $router->add('/admin/products/create', 'Admin\ProductController', 'create');
 $router->add('/admin/products/edit', 'Admin\ProductController', 'edit');

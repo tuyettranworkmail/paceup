@@ -251,14 +251,33 @@ function removeCoupon() {
 
 function handleCheckout(e) {
     e.preventDefault();
-    
-    // In a real app, send data to server here.
-    // For now, we simulate success and clear cart.
-    
-    localStorage.removeItem('paceup_cart');
-    
-    // Redirect to success page
-    window.location.href = BASE_URL + 'checkout-success';
+
+    fetch(BASE_URL + 'checkout/place-order', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            shipping_name: document.getElementById('fullName').value.trim(),
+            shipping_phone: document.getElementById('phone').value.trim(),
+            shipping_email: document.getElementById('email').value.trim(),
+            shipping_address: document.getElementById('address').value.trim(),
+            coupon_id: appliedCouponId,
+            discount: appliedDiscount,
+            items: checkoutCart
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            alert(data.message || 'Khong the dat hang. Vui long thu lai.');
+            return;
+        }
+
+        localStorage.removeItem('paceup_cart');
+        window.location.href = BASE_URL + 'checkout-success';
+    })
+    .catch(() => {
+        alert('Khong the dat hang. Vui long thu lai.');
+    });
 }
 </script>
 

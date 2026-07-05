@@ -10,12 +10,14 @@ class ShopController {
         $category = $_GET['category'] ?? 'all';
         $sort = $_GET['sort'] ?? 'default';
         $priceRange = $_GET['price'] ?? 'all';
+        $keyword = trim($_GET['q'] ?? '');
 
         $products = $productModel->getProductsByFilter([
             'gender' => $gender,
             'category' => $category,
             'price' => $priceRange,
-            'sort' => $sort
+            'sort' => $sort,
+            'keyword' => $keyword
         ]);
 
         $categories = $productModel->getActiveCategories();

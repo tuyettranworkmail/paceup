@@ -95,6 +95,11 @@ class Product extends BaseModel {
             }
         }
 
+        if (!empty($filters['keyword'])) {
+            $sql .= " AND (p.name LIKE :keyword OR p.slug LIKE :keyword OR c.name LIKE :keyword)";
+            $params['keyword'] = '%' . $filters['keyword'] . '%';
+        }
+
         if (!empty($filters['sort'])) {
             switch ($filters['sort']) {
                 case 'price-asc':
