@@ -7,7 +7,12 @@ use PDO;
 class Cart extends BaseModel {
     public function __construct() {
         parent::__construct();
-        // Xử lý logic cho các bảng: cart, wishlist
+        // Try to migrate variant_id to product_id if not done yet
+        try {
+            $this->db->exec("ALTER TABLE `cart` CHANGE `variant_id` `product_id` INT(11) NULL DEFAULT NULL");
+        } catch (\PDOException $e) {
+            // Ignore if column already changed or other errors
+        }
     }
 
     // --- CART ---
@@ -17,15 +22,38 @@ class Cart extends BaseModel {
     public function deleteCartItem($id) { return $this->delete('cart', $id); }
 
     public function getCartByUserId($userId) {
-        $stmt = $this->db->prepare("SELECT * FROM cart WHERE user_id = :user_id");
+        $stmt = $this->db->prepare("
+            SELECT c.*, p.name, p.base_price as price, p.slug, 
+                   (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY is_primary DESC, id ASC LIMIT 1) as image_url
+            FROM cart c
+            JOIN product p ON c.product_id = p.id
+            WHERE c.user_id = :user_id
+        ");
         $stmt->execute(['user_id' => $userId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function getCartBySessionId($sessionId) {
-        $stmt = $this->db->prepare("SELECT * FROM cart WHERE session_id = :session_id");
+        $stmt = $this->db->prepare("
+            SELECT c.*, p.name, p.base_price as price, p.slug, 
+                   (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY is_primary DESC, id ASC LIMIT 1) as image_url
+            FROM cart c
+            JOIN product p ON c.product_id = p.id
+            WHERE c.session_id = :session_id
+        ");
         $stmt->execute(['session_id' => $sessionId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    public function checkExists($userId, $sessionId, $productId) {
+        if ($userId) {
+            $stmt = $this->db->prepare("SELECT id, quantity FROM cart WHERE user_id = :user_id AND product_id = :product_id");
+            $stmt->execute(['user_id' => $userId, 'product_id' => $productId]);
+        } else {
+            $stmt = $this->db->prepare("SELECT id, quantity FROM cart WHERE session_id = :session_id AND product_id = :product_id");
+            $stmt->execute(['session_id' => $sessionId, 'product_id' => $productId]);
+        }
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     // Đếm tổng số lượng sản phẩm trong giỏ hàng (dùng cho badge trên navbar)
@@ -52,12 +80,12 @@ class Cart extends BaseModel {
         }
 
         foreach ($guestCartItems as $guestItem) {
-            $variantId = $guestItem['variant_id'];
+            $productId = $guestItem['product_id'];
             $guestQuantity = $guestItem['quantity'];
 
             // Kiểm tra xem user đã có sản phẩm này trong giỏ hàng chưa
-            $stmt = $this->db->prepare("SELECT * FROM cart WHERE user_id = :user_id AND variant_id = :variant_id");
-            $stmt->execute(['user_id' => $userId, 'variant_id' => $variantId]);
+            $stmt = $this->db->prepare("SELECT * FROM cart WHERE user_id = :user_id AND product_id = :product_id");
+            $stmt->execute(['user_id' => $userId, 'product_id' => $productId]);
             $userItem = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($userItem) {
@@ -85,16 +113,5 @@ class Cart extends BaseModel {
             return $stmt->execute(['session_id' => $sessionId]);
         }
         return false;
-    }
-
-    // --- WISHLIST ---
-    public function createWishlistItem($data) { return $this->insert('wishlist', $data); }
-    public function getWishlistItem($id) { return $this->getById('wishlist', $id); }
-    public function deleteWishlistItem($id) { return $this->delete('wishlist', $id); }
-
-    public function getWishlistByUser($userId) {
-        $stmt = $this->db->prepare("SELECT * FROM wishlist WHERE user_id = :user_id");
-        $stmt->execute(['user_id' => $userId]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }

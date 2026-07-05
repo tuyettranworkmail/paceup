@@ -19,7 +19,7 @@ function productDetailType($product): string {
 }
 ?>
 
-// Controller provides $product and $related
+<?php // Controller provides $product and $related ?>
 
 <style>
 .product-detail-page { max-width: 1200px; margin: 2rem auto; padding: 0 2rem; font-family: var(--font-body); }
@@ -102,8 +102,15 @@ function productDetailType($product): string {
             </div>
 
             <div class="pd-actions">
-                <button class="btn-add-bag" onclick="addToCart('<?= htmlspecialchars(addslashes($product['name'])) ?>', <?= $product['price'] ?>, '<?= htmlspecialchars(productDetailAssetPath($product['image'])) ?>')">Thêm vào giỏ</button>
-                <button class="btn-favourite" data-name="<?= htmlspecialchars($product['name']) ?>" onclick="toggleFavourite(this, '<?= htmlspecialchars(addslashes($product['name'])) ?>', <?= $product['price'] ?>, '<?= htmlspecialchars(productDetailAssetPath($product['image'])) ?>')">
+                <button class="btn-add-bag" onclick="addToCart(<?= $product['id'] ?>)">Thêm vào giỏ</button>
+                <?php
+                $isFav = false;
+                if (isset($_SESSION['user_id'])) {
+                    $wishlistModel = new \App\Models\Wishlist();
+                    $isFav = $wishlistModel->checkExists($_SESSION['user_id'], $product['id']);
+                }
+                ?>
+                <button class="btn-favourite <?= $isFav ? 'active' : '' ?>" onclick="toggleFavourite(this, <?= $product['id'] ?>)">
                     Yêu thích
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
                 </button>
@@ -158,27 +165,33 @@ document.querySelectorAll('.pd-color-btn').forEach(btn => {
     });
 });
 
-// ===== CART (localStorage) =====
-let cart = JSON.parse(localStorage.getItem('paceup_cart')) || [];
+// ===== CART (Database) =====
+function addToCart(productId) {
+    const formData = new FormData();
+    formData.append('product_id', productId);
+    formData.append('qty', 1);
 
-function saveCart() {
-    localStorage.setItem('paceup_cart', JSON.stringify(cart));
-    updateBadge();
-}
-
-function addToCart(name, price, image) {
-    const existing = cart.find(item => item.name === name);
-    if (existing) existing.qty += 1;
-    else cart.push({ name, price, image, qty: 1 });
-    saveCart();
-    showToast('Đã thêm vào giỏ hàng!');
-}
-
-function updateBadge() {
-    const total = cart.reduce((s, i) => s + i.qty, 0);
-    document.querySelectorAll('.cart-badge').forEach(b => {
-        b.textContent = total;
-        b.style.display = total > 0 ? 'flex' : 'none';
+    fetch(BASE_URL + 'cart/add', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Đã thêm vào giỏ hàng!');
+            if (typeof window.updateBadgeGlobal === 'function') {
+                window.updateBadgeGlobal(data.cart_count);
+            }
+        } else {
+            showToast(data.message || 'Có lỗi xảy ra!');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Có lỗi xảy ra, vui lòng thử lại!');
     });
 }
 
@@ -190,28 +203,45 @@ function showToast(message) {
 }
 
 // ===== FAVOURITE =====
-let favourites = JSON.parse(localStorage.getItem('paceup_favs')) || [];
+function toggleFavourite(btn, productId) {
+    const isAdding = !btn.classList.contains('active');
+    const url = isAdding ? BASE_URL + 'wishlist/add' : BASE_URL + 'wishlist/remove';
 
-function toggleFavourite(btn, name, price, image) {
-    const index = favourites.findIndex(f => f.name === name);
-    if (index > -1) {
-        favourites.splice(index, 1);
-        btn.classList.remove('active');
-        showToast('Đã xóa khỏi danh sách yêu thích');
-    } else {
-        favourites.push({ name, price, image });
-        btn.classList.add('active');
-        showToast('Đã thêm vào danh sách yêu thích');
-    }
-    localStorage.setItem('paceup_favs', JSON.stringify(favourites));
+    const formData = new FormData();
+    formData.append('product_id', productId);
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (isAdding) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+            showToast(data.message);
+        } else {
+            showToast(data.message);
+            if (data.message.includes('đăng nhập')) {
+                setTimeout(() => {
+                    window.location.href = BASE_URL + 'login';
+                }, 1500);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Có lỗi xảy ra, vui lòng thử lại!');
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Mark favourite state
-    const favBtn = document.querySelector('.btn-favourite');
-    if (favBtn && favourites.find(f => f.name === favBtn.dataset.name)) {
-        favBtn.classList.add('active');
-    }
     // Cart badge + open on cart icon
     const cartIcon = document.querySelector('a[href="<?= BASE_URL ?>cart"]');
     if (cartIcon && !cartIcon.querySelector('.cart-badge')) {
@@ -221,7 +251,6 @@ document.addEventListener('DOMContentLoaded', () => {
         badge.textContent = '0';
         cartIcon.appendChild(badge);
     }
-    updateBadge();
 });
 </script>
 

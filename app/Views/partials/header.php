@@ -1,5 +1,15 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
+
+if (!function_exists('productAssetPath')) {
+    function productAssetPath($image) {
+        if (!$image) return '';
+        if (strpos($image, 'http') === 0) return $image;
+        if (strpos($image, 'public/uploads/') === 0) return $image;
+        if (strpos($image, 'uploads/') === 0) return 'public/' . $image;
+        return 'assets/images/' . $image;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -72,13 +82,27 @@ if (session_status() === PHP_SESSION_NONE) session_start();
         
         // Define global updateBadge if not defined
         if (typeof window.updateBadgeGlobal !== 'function') {
-            window.updateBadgeGlobal = function() {
-                let cart = JSON.parse(localStorage.getItem('paceup_cart')) || [];
-                const total = cart.reduce((s, i) => s + i.qty, 0);
-                document.querySelectorAll('.cart-badge').forEach(b => {
-                    b.textContent = total;
-                    b.style.display = total > 0 ? 'flex' : 'none';
-                });
+            window.updateBadgeGlobal = function(cartCount = null) {
+                if (cartCount !== null) {
+                    document.querySelectorAll('.cart-badge').forEach(b => {
+                        b.textContent = cartCount;
+                        b.style.display = cartCount > 0 ? 'flex' : 'none';
+                    });
+                    return;
+                }
+                
+                fetch(BASE_URL + 'cart/get')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            const total = data.cart_count || 0;
+                            document.querySelectorAll('.cart-badge').forEach(b => {
+                                b.textContent = total;
+                                b.style.display = total > 0 ? 'flex' : 'none';
+                            });
+                        }
+                    })
+                    .catch(e => console.error(e));
             };
         }
         window.updateBadgeGlobal();

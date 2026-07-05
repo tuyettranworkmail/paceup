@@ -48,6 +48,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: ?page=coupons&success=1");
             exit;
         }
+    } elseif ($action === 'edit_coupon') {
+        $id = (int)($_POST['id'] ?? 0);
+        $code = trim($_POST['code'] ?? '');
+        $usage_limit = (int)($_POST['usage_limit'] ?? 100);
+        $discount_type = $_POST['discount_type'] ?? 'percent';
+        $discount_value = (float)($_POST['discount_value'] ?? 0);
+        $min_order_amount = (float)($_POST['min_order_amount'] ?? 0);
+        $start_date = !empty($_POST['start_date']) ? $_POST['start_date'] : date('Y-m-d H:i:s');
+        $expiry_date = !empty($_POST['expiry_date']) ? $_POST['expiry_date'] : date('Y-m-d H:i:s', strtotime('+30 days'));
+
+        $discount_percent = null;
+        $max_discount = null;
+        if ($discount_type === 'percent') {
+            $discount_percent = $discount_value;
+        } else {
+            $max_discount = $discount_value;
+        }
+
+        if ($id > 0 && !empty($code)) {
+            $stmt = $pdo->prepare("UPDATE coupons SET code = ?, discount_percent = ?, max_discount = ?, min_order_amount = ?, usage_limit = ?, start_date = ?, expiry_date = ? WHERE id = ?");
+            $stmt->execute([$code, $discount_percent, $max_discount, $min_order_amount, $usage_limit, $start_date, $expiry_date, $id]);
+        }
+        header("Location: ?page=coupons&success=1");
+        exit;
+    } elseif ($action === 'delete_coupon') {
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id > 0) {
+            $stmt = $pdo->prepare("DELETE FROM coupons WHERE id = ?");
+            $stmt->execute([$id]);
+        }
+        header("Location: ?page=coupons&success=1");
+        exit;
     } elseif ($action === 'add_inventory') {
         $variant_id = $_POST['variant_id'] ?? 0;
         $transaction_type = $_POST['transaction_type'] ?? 'in';
@@ -171,6 +203,9 @@ if ($page === 'users') {
             $total_spent += $o['total_amount'];
         }
     }
+} elseif ($page === 'coupons') {
+    $stmt = $pdo->query("SELECT * FROM coupons ORDER BY id DESC");
+    $admin_coupons = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 include __DIR__ . '/partials/header.php';
@@ -1032,7 +1067,7 @@ include __DIR__ . '/partials/header.php';
         <?php elseif ($page === 'coupons'): ?>
             <div class="admin-header">
                 <h2>Mã giảm giá</h2>
-                <button class="btn btn-dark" onclick="openModal('couponModal')">Tạo mã mới</button>
+                <button class="btn btn-dark" onclick="if(typeof resetCouponForm === 'function') resetCouponForm(); openModal('couponModal')">Tạo mã mới</button>
             </div>
 
             <div class="table-wrapper">
@@ -1049,60 +1084,130 @@ include __DIR__ . '/partials/header.php';
                         </tr>
                     </thead>
                     <tbody>
+                        <?php foreach ($admin_coupons as $coupon): 
+                            $now = date('Y-m-d H:i:s');
+                            $isValid = true;
+                            $statusLabel = 'Khả dụng';
+                            $statusColor = ['#E8F5E9', '#388E3C'];
+
+                            if (!empty($coupon['expiry_date']) && $now > $coupon['expiry_date']) {
+                                $isValid = false;
+                                $statusLabel = 'Đã hết hạn';
+                                $statusColor = ['#FFEBEE', '#D32F2F'];
+                            } elseif (!empty($coupon['usage_limit']) && $coupon['used_count'] >= $coupon['usage_limit']) {
+                                $isValid = false;
+                                $statusLabel = 'Hết lượt';
+                                $statusColor = ['#FFEBEE', '#D32F2F'];
+                            } elseif (!empty($coupon['start_date']) && $now < $coupon['start_date']) {
+                                $isValid = false;
+                                $statusLabel = 'Chưa đến hạn';
+                                $statusColor = ['#FFF3E0', '#F57C00'];
+                            }
+                            
+                            $discountText = $coupon['discount_percent'] ? '-'.$coupon['discount_percent'].'%' : '-'.number_format($coupon['max_discount'], 0, ',', '.').'₫';
+                            $conditionText = $coupon['min_order_amount'] > 0 ? 'Đơn tối thiểu '.number_format($coupon['min_order_amount'], 0, ',', '.').'đ' : 'Không điều kiện';
+                        ?>
                         <tr>
-                            <td><strong style="font-family: var(--font-ui); background: #f5f5f5; padding: 4px 8px; border-radius: 4px; border: 1px dashed #ccc; letter-spacing: 1px;">SUMMER26</strong></td>
-                            <td><strong style="color: #D32F2F;">-10%</strong></td>
-                            <td>Đơn tối thiểu 1tr</td>
-                            <td>45 / 100</td>
-                            <td><span style="color: #666;">31/07/2026</span></td>
-                            <td><span style="background: #E8F5E9; color: #388E3C; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Khả dụng</span></td>
+                            <td><strong style="font-family: var(--font-ui); background: #f5f5f5; padding: 4px 8px; border-radius: 4px; border: 1px dashed #ccc; letter-spacing: 1px;"><?= htmlspecialchars($coupon['code']) ?></strong></td>
+                            <td><strong style="color: #D32F2F;"><?= $discountText ?></strong></td>
+                            <td><?= htmlspecialchars($conditionText) ?></td>
+                            <td><?= $coupon['used_count'] ?> / <?= $coupon['usage_limit'] ?: '∞' ?></td>
                             <td>
-                                <a href="javascript:void(0)" onclick="openModal('couponModal')" style="color: #2196F3; margin-right: 10px; font-weight: bold;">Sửa</a>
-                                <a href="javascript:void(0)" onclick="confirmDelete('SUMMER26')" style="color: #F44336; font-weight: bold;">Xóa</a>
+                                <?php if ($isValid): ?>
+                                    <span style="color: #666;"><?= date('d/m/Y', strtotime($coupon['expiry_date'])) ?></span>
+                                <?php else: ?>
+                                    <span style="color: #D32F2F; font-weight: bold;"><?= date('d/m/Y', strtotime($coupon['expiry_date'])) ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td><span style="background: <?= $statusColor[0] ?>; color: <?= $statusColor[1] ?>; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;"><?= $statusLabel ?></span></td>
+                            <td>
+                                <?php
+                                $dType = $coupon['discount_percent'] ? 'percent' : 'fixed';
+                                $dVal = $coupon['discount_percent'] ?: $coupon['max_discount'];
+                                $cJson = htmlspecialchars(json_encode([
+                                    'id' => $coupon['id'],
+                                    'code' => $coupon['code'],
+                                    'usage_limit' => $coupon['usage_limit'],
+                                    'discount_type' => $dType,
+                                    'discount_value' => $dVal,
+                                    'start_date' => date('Y-m-d', strtotime($coupon['start_date'])),
+                                    'expiry_date' => date('Y-m-d', strtotime($coupon['expiry_date'])),
+                                    'min_order_amount' => $coupon['min_order_amount']
+                                ]), ENT_QUOTES, 'UTF-8');
+                                ?>
+                                <a href="javascript:void(0)" onclick="editCoupon(<?= $cJson ?>)" style="color: #2196F3; margin-right: 10px; font-weight: bold;">Sửa</a>
+                                <a href="javascript:void(0)" onclick="deleteCoupon(<?= $coupon['id'] ?>, '<?= htmlspecialchars($coupon['code'], ENT_QUOTES) ?>')" style="color: #F44336; font-weight: bold;">Xóa</a>
                             </td>
                         </tr>
-                        <tr>
-                            <td><strong style="font-family: var(--font-ui); background: #f5f5f5; padding: 4px 8px; border-radius: 4px; border: 1px dashed #ccc; letter-spacing: 1px;">FREESHIP</strong></td>
-                            <td><strong style="color: #D32F2F;">-30.000₫</strong></td>
-                            <td>Không điều kiện</td>
-                            <td>120 / 500</td>
-                            <td><span style="color: #666;">31/12/2026</span></td>
-                            <td><span style="background: #E8F5E9; color: #388E3C; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Khả dụng</span></td>
-                            <td>
-                                <a href="javascript:void(0)" onclick="openModal('couponModal')" style="color: #2196F3; margin-right: 10px; font-weight: bold;">Sửa</a>
-                                <a href="javascript:void(0)" onclick="confirmDelete('FREESHIP')" style="color: #F44336; font-weight: bold;">Xóa</a>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong style="font-family: var(--font-ui); background: #f5f5f5; padding: 4px 8px; border-radius: 4px; border: 1px dashed #ccc; letter-spacing: 1px;">FLASH50</strong></td>
-                            <td><strong style="color: #D32F2F;">-50%</strong></td>
-                            <td>Đơn tối đa 500k</td>
-                            <td>50 / 50</td>
-                            <td><span style="color: #D32F2F; font-weight: bold;">Đã hết hạn</span></td>
-                            <td><span style="background: #FFEBEE; color: #D32F2F; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Hết lượt</span></td>
-                            <td>
-                                <a href="javascript:void(0)" onclick="openModal('couponModal')" style="color: #2196F3; margin-right: 10px; font-weight: bold;">Sửa</a>
-                                <a href="javascript:void(0)" onclick="confirmDelete('FLASH50')" style="color: #F44336; font-weight: bold;">Xóa</a>
-                            </td>
-                        </tr>
+                        <?php endforeach; ?>
+                        <?php if (empty($admin_coupons)): ?>
+                        <tr><td colspan="7" style="text-align: center; padding: 2rem;">Chưa có mã giảm giá nào.</td></tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
 
+            <!-- Form ẩn để xóa -->
+            <form id="deleteCouponForm" action="?page=coupons" method="POST" style="display: none;">
+                <input type="hidden" name="action" value="delete_coupon">
+                <input type="hidden" name="id" id="delete_coupon_id">
+            </form>
+
+            <script>
+            function editCoupon(coupon) {
+                document.getElementById('coupon_id').value = coupon.id;
+                document.getElementById('coupon_action').value = 'edit_coupon';
+                document.querySelector('input[name="code"]').value = coupon.code;
+                document.querySelector('input[name="usage_limit"]').value = coupon.usage_limit;
+                document.querySelector('select[name="discount_type"]').value = coupon.discount_type;
+                document.querySelector('input[name="discount_value"]').value = coupon.discount_value;
+                document.querySelector('input[name="start_date"]').value = coupon.start_date;
+                document.querySelector('input[name="expiry_date"]').value = coupon.expiry_date;
+                document.querySelector('input[name="min_order_amount"]').value = coupon.min_order_amount;
+                
+                document.getElementById('couponModalTitle').innerText = 'Sửa mã giảm giá';
+                openModal('couponModal');
+            }
+
+            function resetCouponForm() {
+                document.getElementById('coupon_id').value = '';
+                document.getElementById('coupon_action').value = 'add_coupon';
+                document.getElementById('couponModalForm').reset();
+                document.getElementById('couponModalTitle').innerText = 'Thông tin mã giảm giá';
+            }
+
+            function deleteCoupon(id, code) {
+                if (confirm('Bạn có chắc chắn muốn xóa mã ' + code + ' không?')) {
+                    document.getElementById('delete_coupon_id').value = id;
+                    document.getElementById('deleteCouponForm').submit();
+                }
+            }
+
+            function generateCode() {
+                const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                let result = '';
+                for (let i = 0; i < 8; i++) {
+                    result += characters.charAt(Math.floor(Math.random() * characters.length));
+                }
+                document.querySelector('input[name="code"]').value = result;
+            }
+            </script>
+
             <!-- Modal Tạo Mã Mới -->
             <div id="couponModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
                 <div style="background: #fff; width: 100%; max-width: 550px; border-radius: 12px; padding: 2rem; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-                    <button onclick="closeModal('couponModal')" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
-                    <h3 style="margin-bottom: 1.5rem; font-family: var(--font-heading); font-size: 1.5rem; text-transform: uppercase;">Thông tin mã giảm giá</h3>
+                    <button onclick="closeModal('couponModal'); if(typeof resetCouponForm === 'function') resetCouponForm();" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
+                    <h3 id="couponModalTitle" style="margin-bottom: 1.5rem; font-family: var(--font-heading); font-size: 1.5rem; text-transform: uppercase;">Thông tin mã giảm giá</h3>
                     
-                    <form action="?page=coupons" method="POST">
-                        <input type="hidden" name="action" value="add_coupon">
+                    <form id="couponModalForm" action="?page=coupons" method="POST">
+                        <input type="hidden" name="action" id="coupon_action" value="add_coupon">
+                        <input type="hidden" name="id" id="coupon_id" value="">
                         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
                             <div>
                                 <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; font-family: var(--font-ui); font-size: 0.9rem;">Mã Code (Tự nhập hoặc tạo ngẫu nhiên) *</label>
                                 <div style="display: flex; gap: 10px;">
                                     <input type="text" name="code" required placeholder="VD: SUMMER26" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: var(--font-ui); text-transform: uppercase;">
-                                    <button type="button" style="padding: 0 1rem; background: #eee; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-weight: bold;" onclick="alert('Đã tạo mã ngẫu nhiên')">Tạo</button>
+                                    <button type="button" style="padding: 0 1rem; background: #eee; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-weight: bold;" onclick="generateCode()">Tạo</button>
                                 </div>
                             </div>
                             <div>

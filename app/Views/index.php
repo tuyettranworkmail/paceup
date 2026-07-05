@@ -36,13 +36,13 @@
             <?php foreach ($featuredProducts as $product): ?>
             <div class="product-card">
                 <a href="<?= BASE_URL ?>product?id=<?= $product['id'] ?>" class="product-img-wrapper" style="display: block;">
-                    <img src="<?= BASE_URL ?>assets/images/<?= htmlspecialchars($product['image']) ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img">
+                    <img src="<?= BASE_URL . htmlspecialchars(productAssetPath($product['image'] ?? '')) ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="product-img">
                 </a>
                 <div class="product-info">
                     <a href="<?= BASE_URL ?>product?id=<?= $product['id'] ?>" style="text-decoration: none; color: inherit;"><span class="product-title"><?= htmlspecialchars($product['name']) ?></span></a>
                     <span class="product-category"><?= htmlspecialchars($product['category']) ?></span>
-                    <span class="product-price"><?= number_format($product['price'], 0, ',', '.') ?> ₫</span>
-                    <button class="btn-buy" onclick="addToCart('<?= htmlspecialchars(addslashes($product['name'])) ?>', <?= $product['price'] ?>, 'assets/images/<?= htmlspecialchars($product['image']) ?>')">Mua ngay</button>
+                    <div class="product-price"><?= number_format($product['price'], 0, ',', '.') ?> ₫</div>
+                    <button class="btn-buy" onclick="addToCart(<?= $product['id'] ?>)">Mua ngay</button>
                 </div>
             </div>
             <?php endforeach; ?>
@@ -166,61 +166,97 @@ function scrollLifestyle(direction) {
     slider.scrollBy({ left: direction * slideWidth, behavior: 'smooth' });
 }
 
-// ===== CART SYSTEM (localStorage) =====
-let cart = JSON.parse(localStorage.getItem('paceup_cart')) || [];
+// ===== CART SYSTEM (Database) =====
+let cart = [];
 
-function saveCart() {
-    localStorage.setItem('paceup_cart', JSON.stringify(cart));
-    updateCartUI();
+function loadCart() {
+    fetch(BASE_URL + 'cart/get')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                cart = data.items.map(item => ({
+                    cart_id: item.id,
+                    product_id: item.product_id,
+                    name: item.name,
+                    price: parseFloat(item.price),
+                    qty: parseInt(item.quantity),
+                    image: item.image_url
+                }));
+                updateCartUI(data.cart_count);
+            }
+        });
 }
 
-function addToCart(name, price, image) {
-    const existing = cart.find(item => item.name === name);
-    if (existing) {
-        existing.qty += 1;
-    } else {
-        cart.push({ name, price, image, qty: 1 });
+function addToCart(productId) {
+    const formData = new FormData();
+    formData.append('product_id', productId);
+    formData.append('qty', 1);
+
+    fetch(BASE_URL + 'cart/add', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            showToast('Đã thêm vào giỏ hàng!');
+            loadCart();
+            toggleCart(true);
+            if (typeof window.updateBadgeGlobal === 'function') window.updateBadgeGlobal(data.cart_count);
+        } else {
+            showToast(data.message || 'Lỗi!');
+        }
+    });
+}
+
+function removeFromCart(cartId) {
+    const formData = new FormData();
+    formData.append('cart_id', cartId);
+    fetch(BASE_URL + 'cart/remove', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            loadCart();
+            if (typeof window.updateBadgeGlobal === 'function') window.updateBadgeGlobal(data.cart_count);
+        }
+    });
+}
+
+function updateQty(cartId, newQty) {
+    if (newQty < 1) {
+        removeFromCart(cartId);
+        return;
     }
-    saveCart();
-    showToast('Đã thêm vào giỏ hàng!');
-    toggleCart(true);
-}
-
-function removeFromCart(index) {
-    cart.splice(index, 1);
-    saveCart();
-}
-
-function updateQty(index, delta) {
-    cart[index].qty += delta;
-    if (cart[index].qty <= 0) {
-        cart.splice(index, 1);
-    }
-    saveCart();
+    const formData = new FormData();
+    formData.append('cart_id', cartId);
+    formData.append('qty', newQty);
+    fetch(BASE_URL + 'cart/update', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            loadCart();
+            if (typeof window.updateBadgeGlobal === 'function') window.updateBadgeGlobal(data.cart_count);
+        }
+    });
 }
 
 function formatPrice(price) {
     return new Intl.NumberFormat('vi-VN').format(price) + ' ₫';
 }
 
-function updateCartUI() {
+function updateCartUI(totalItems = 0) {
     const cartItems = document.getElementById('cartItems');
     const cartCount = document.getElementById('cartCount');
     const cartTotal = document.getElementById('cartTotal');
-    const cartEmpty = document.getElementById('cartEmpty');
     const badges = document.querySelectorAll('.cart-badge');
 
-    const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
     const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
     cartCount.textContent = totalItems;
     cartTotal.textContent = formatPrice(totalPrice);
-
-    // Update badge
-    badges.forEach(b => b.textContent = totalItems);
-    document.querySelectorAll('.cart-badge').forEach(b => {
-        b.style.display = totalItems > 0 ? 'flex' : 'none';
-    });
 
     // Build cart items HTML
     if (cart.length === 0) {
@@ -230,21 +266,23 @@ function updateCartUI() {
                 <p>Giỏ hàng trống</p>
             </div>`;
     } else {
-        cartItems.innerHTML = cart.map((item, i) => `
+        cartItems.innerHTML = cart.map(item => {
+            const imgUrl = item.image ? (item.image.startsWith('http') ? item.image : (item.image.startsWith('public/uploads/') ? BASE_URL + item.image : BASE_URL + (item.image.startsWith('uploads/') ? 'public/' : 'assets/images/') + item.image)) : '';
+            return `
             <div class="cart-item">
-                <img src="${item.image.startsWith('http') ? item.image : BASE_URL + item.image}" alt="${item.name}">
+                <img src="${imgUrl}" alt="${item.name}">
                 <div class="cart-item-info">
                     <div class="item-name">${item.name}</div>
                     <div class="item-price">${formatPrice(item.price)}</div>
                     <div class="cart-item-qty">
-                        <button onclick="updateQty(${i}, -1)">−</button>
+                        <button onclick="updateQty(${item.cart_id}, ${item.qty - 1})">−</button>
                         <span>${item.qty}</span>
-                        <button onclick="updateQty(${i}, 1)">+</button>
+                        <button onclick="updateQty(${item.cart_id}, ${item.qty + 1})">+</button>
                     </div>
                 </div>
-                <button class="cart-item-remove" onclick="removeFromCart(${i})">✕</button>
+                <button class="cart-item-remove" onclick="removeFromCart(${item.cart_id})">✕</button>
             </div>
-        `).join('');
+        `}).join('');
     }
 }
 
@@ -295,6 +333,12 @@ document.addEventListener('DOMContentLoaded', () => {
             cartIcon.appendChild(badge);
         }
         updateCartUI();
+    }
+});
+document.addEventListener('DOMContentLoaded', () => {
+    // Only load if on homepage
+    if (document.getElementById('cartItems')) {
+        loadCart();
     }
 });
 </script>

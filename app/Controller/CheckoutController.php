@@ -27,7 +27,9 @@ class CheckoutController {
         }
 
         $input = json_decode(file_get_contents('php://input'), true);
-        $items = $input['items'] ?? [];
+        
+        $cartModel = new \App\Models\Cart();
+        $items = $cartModel->getCartByUserId($_SESSION['user_id']);
 
         if (empty($items)) {
             http_response_code(400);
@@ -50,7 +52,7 @@ class CheckoutController {
 
         $totalAmount = 0;
         foreach ($items as $item) {
-            $quantity = max(0, (int) ($item['qty'] ?? 0));
+            $quantity = max(0, (int) ($item['quantity'] ?? 0));
             $price = max(0, (float) ($item['price'] ?? 0));
             $totalAmount += $quantity * $price;
         }
@@ -77,18 +79,23 @@ class CheckoutController {
         ]);
 
         foreach ($items as $item) {
-            $quantity = max(0, (int) ($item['qty'] ?? 0));
+            $quantity = max(0, (int) ($item['quantity'] ?? 0));
             $price = max(0, (float) ($item['price'] ?? 0));
 
             if ($quantity > 0 && $price >= 0) {
                 $orderModel->createOrderItem([
                     'order_id' => $orderId,
-                    'variant_id' => null,
+                    'product_id' => $item['product_id'] ?? null,
                     'quantity' => $quantity,
                     'price_at_time' => $price
                 ]);
+                if (isset($item['product_id'])) {
+                    $orderModel->incrementSoldCount($item['product_id'], $quantity);
+                }
             }
         }
+        
+        $cartModel->clearCart($_SESSION['user_id']);
 
         echo json_encode(['success' => true, 'order_id' => $orderId]);
     }
@@ -113,9 +120,17 @@ class CheckoutController {
         }
 
         $coupon = $result['data'];
-        $discount = $orderTotal * ($coupon['discount_percent'] / 100);
-        if ($coupon['max_discount'] && $discount > $coupon['max_discount']) {
-            $discount = floatval($coupon['max_discount']);
+        $discount = 0;
+        $discountPercent = floatval($coupon['discount_percent'] ?? 0);
+        $maxDiscount = floatval($coupon['max_discount'] ?? 0);
+
+        if ($discountPercent > 0) {
+            $discount = $orderTotal * ($discountPercent / 100);
+            if ($maxDiscount > 0 && $discount > $maxDiscount) {
+                $discount = $maxDiscount;
+            }
+        } elseif ($maxDiscount > 0) {
+            $discount = $maxDiscount;
         }
 
         echo json_encode([

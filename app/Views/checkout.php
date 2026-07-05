@@ -139,16 +139,35 @@
 </div>
 
 <script>
-let checkoutCart = JSON.parse(localStorage.getItem('paceup_cart')) || [];
+let checkoutCart = [];
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (checkoutCart.length === 0) {
-        alert('Giỏ hàng của bạn đang trống!');
-        window.location.href = BASE_URL + 'shop';
-        return;
-    }
-    renderCheckoutSummary();
+    fetchCart();
 });
+
+function fetchCart() {
+    fetch(BASE_URL + 'cart/get')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                checkoutCart = data.items.map(item => ({
+                    cart_id: item.id,
+                    product_id: item.product_id,
+                    name: item.name,
+                    price: parseFloat(item.price),
+                    qty: parseInt(item.quantity),
+                    image: item.image_url
+                }));
+                
+                if (checkoutCart.length === 0) {
+                    alert('Giỏ hàng của bạn đang trống!');
+                    window.location.href = BASE_URL + 'shop';
+                    return;
+                }
+                renderCheckoutSummary();
+            }
+        });
+}
 
 function formatPrice(price) {
     return new Intl.NumberFormat('vi-VN').format(price) + ' ₫';
@@ -159,7 +178,7 @@ function checkoutImageUrl(image) {
     if (image.startsWith('http')) return image;
     if (image.startsWith('public/uploads/')) return BASE_URL + image;
     if (image.startsWith('uploads/')) return BASE_URL + 'public/' + image;
-    return BASE_URL + image;
+    return BASE_URL + 'assets/images/' + image;
 }
 
 function renderCheckoutSummary() {
@@ -171,13 +190,20 @@ function renderCheckoutSummary() {
         total += itemTotal;
         const imgUrl = checkoutImageUrl(item.image);
         return `
-            <div class="summary-item">
+            <div class="summary-item" style="position: relative;">
                 <img src="${imgUrl}" alt="${item.name}" onerror="this.src='${item.image}'">
                 <div class="summary-item-info">
                     <div class="summary-item-name">${item.name}</div>
-                    <div class="summary-item-qty">SL: ${item.qty}</div>
+                    <div style="display:flex; align-items:center; gap:10px; margin-top:5px;">
+                        <button type="button" onclick="updateCartItem(${item.cart_id}, ${item.qty - 1})" style="width:24px; height:24px; border:1px solid #ddd; background:#fff; cursor:pointer;">-</button>
+                        <span>${item.qty}</span>
+                        <button type="button" onclick="updateCartItem(${item.cart_id}, ${item.qty + 1})" style="width:24px; height:24px; border:1px solid #ddd; background:#fff; cursor:pointer;">+</button>
+                    </div>
                 </div>
-                <div class="summary-item-price">${formatPrice(itemTotal)}</div>
+                <div class="summary-item-price">
+                    ${formatPrice(itemTotal)}
+                    <button type="button" onclick="removeCartItem(${item.cart_id})" style="display:block; margin-top:5px; margin-left:auto; background:none; border:none; color:red; cursor:pointer; font-size:12px;">Xóa</button>
+                </div>
             </div>
         `;
     }).join('');
@@ -190,6 +216,45 @@ function selectPayment(element) {
     document.querySelectorAll('.payment-method').forEach(el => el.classList.remove('active'));
     element.classList.add('active');
     element.querySelector('input').checked = true;
+}
+
+function updateCartItem(cartId, newQty) {
+    if (newQty < 1) {
+        removeCartItem(cartId);
+        return;
+    }
+    const formData = new FormData();
+    formData.append('cart_id', cartId);
+    formData.append('qty', newQty);
+
+    fetch(BASE_URL + 'cart/update', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            if (typeof window.updateBadgeGlobal === 'function') window.updateBadgeGlobal(data.cart_count);
+            fetchCart(); // reload cart
+        }
+    });
+}
+
+function removeCartItem(cartId) {
+    if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng?')) return;
+    
+    const formData = new FormData();
+    formData.append('cart_id', cartId);
+
+    fetch(BASE_URL + 'cart/remove', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            if (typeof window.updateBadgeGlobal === 'function') window.updateBadgeGlobal(data.cart_count);
+            fetchCart(); // reload cart
+        }
+    });
 }
 
 let appliedDiscount = 0;
