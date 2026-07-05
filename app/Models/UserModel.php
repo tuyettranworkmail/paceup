@@ -38,6 +38,32 @@ class UserModel extends BaseModel {
         return $this->db->lastInsertId();
     }
 
+    public function createAdmin($data) {
+        $columns = ['full_name', 'email', 'password', 'phone', 'role', 'status'];
+        $values = [
+            $data['full_name'] ?? null,
+            $data['email'] ?? null,
+            $data['password'] ?? null,
+            $data['phone'] ?? null,
+            'admin',
+            1
+        ];
+
+        if ($this->hasColumn('display_name')) {
+            array_splice($columns, 1, 0, 'display_name');
+            array_splice($values, 1, 0, $data['display_name'] ?? null);
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($columns), '?'));
+        $stmt = $this->db->prepare("
+            INSERT INTO user (" . implode(', ', $columns) . ")
+            VALUES ($placeholders)
+        ");
+        $stmt->execute($values);
+
+        return $this->db->lastInsertId();
+    }
+
     public function updateProfile($id, $data) {
         $stmt = $this->db->prepare("UPDATE user SET full_name = ?, phone = ? WHERE id = ?");
         return $stmt->execute([
@@ -184,5 +210,11 @@ class UserModel extends BaseModel {
         $stmt = $this->db->prepare("SELECT * FROM password_reset_otp WHERE email = ?");
         $stmt->execute([$email]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    private function hasColumn($column) {
+        $stmt = $this->db->prepare("SHOW COLUMNS FROM user LIKE ?");
+        $stmt->execute([$column]);
+        return (bool) $stmt->fetch(PDO::FETCH_ASSOC);
     }
 }

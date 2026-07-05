@@ -5,6 +5,9 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
     exit;
 }
 
+$admin_success = $_SESSION['admin_success'] ?? null;
+unset($_SESSION['admin_success']);
+
 require_once 'config/db.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -618,8 +621,14 @@ include __DIR__ . '/partials/header.php';
         <?php elseif ($page === 'users'): ?>
             <div class="admin-header">
                 <h2>Quản lý người dùng</h2>
-                <button class="btn btn-dark">Thêm người dùng</button>
+                <a href="<?= BASE_URL ?>admin/users/create" class="btn btn-dark">Thêm quản trị viên</a>
             </div>
+
+            <?php if ($admin_success): ?>
+                <div style="margin-bottom: 1rem; padding: 0.9rem 1rem; background: #e7f6ec; color: #176b35; border-radius: 6px; font-family: var(--font-ui); font-weight: 600;">
+                    <?= htmlspecialchars($admin_success) ?>
+                </div>
+            <?php endif; ?>
 
             <div class="table-wrapper">
                 <table class="table">

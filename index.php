@@ -44,6 +44,7 @@ $router->add('/account/addresses/add', 'User/ProfileController', 'addAddress');
 $router->add('/account/addresses/default', 'User/ProfileController', 'setDefaultAddress');
 $router->add('/account/addresses/delete', 'User/ProfileController', 'deleteAddress');
 $router->add('/admin', 'AdminController', 'index');
+$router->add('/admin/users/create', 'Admin\UserController', 'create');
 $router->add('/admin/products', 'Admin\ProductController', 'index');
 $router->add('/admin/products/create', 'Admin\ProductController', 'create');
 $router->add('/admin/products/edit', 'Admin\ProductController', 'edit');
