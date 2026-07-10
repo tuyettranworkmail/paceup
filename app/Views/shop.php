@@ -328,6 +328,11 @@ function updateCartUI(totalItems = 0) {
 function toggleCart(forceOpen) {
     const sidebar = document.getElementById('cartSidebar');
     const overlay = document.getElementById('cartOverlay');
+    const isOpen = sidebar.classList.contains('active');
+    const nextOpen = forceOpen === true ? true : !isOpen;
+
+    document.body.style.overflow = nextOpen ? 'hidden' : '';
+
     if (forceOpen === true) {
         sidebar.classList.add('active');
         overlay.classList.add('active');
